@@ -10,5 +10,7 @@
 
 void ThreadTestGarden();
 
+void ThreadTestGardenSem();
+
 
 #endif
