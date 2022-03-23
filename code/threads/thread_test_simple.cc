@@ -30,7 +30,17 @@ SimpleThread(void *name_)
     // behave incorrectly, because printf execution may cause race
     // conditions.
     for (unsigned num = 0; num < 10; num++) {
+#ifdef SEMAPHORE_TEST
+        DEBUG('s', "Esperando semaforo\n");
+        sem->P();
+        DEBUG('s', "Entro al semaforo\n");
+#endif
         printf("*** Thread `%s` is running: iteration %u\n", name, num);
+#ifdef SEMAPHORE_TEST
+        DEBUG('s', "Saliendo del semaforo\n");
+        sem->V();
+        DEBUG('s', "Salio semaforo\n");
+#endif
         currentThread->Yield();
     }
     printf("!!! Thread `%s` has finished\n", name);
