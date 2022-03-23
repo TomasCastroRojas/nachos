@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef SEMAPHORE_TEST
+#include "semaphore.hh"
+Semaphore *semaforito = new Semaphore("Ej 15", 3);
+#endif
 
 /// Loop 10 times, yielding the CPU to another ready thread each iteration.
 ///
@@ -39,25 +43,14 @@ SimpleThread(void *name_)
 void
 ThreadTestSimple()
 {
-    char *name2 = new char[64];
-    strncpy(name2, "2nd", 64);
-    Thread *newThread = new Thread(name2);
-    newThread->Fork(SimpleThread, (void *) name2);
-
-    char *name3 = new char[64];
-    strncpy(name3, "3nd", 64);
-    Thread *newThread = new Thread(name3);
-    newThread->Fork(SimpleThread, (void *) name3);
-
-    char *name4 = new char[64];
-    strncpy(name4, "4nd", 64);
-    Thread *newThread = new Thread(name4);
-    newThread->Fork(SimpleThread, (void *) name4);
-
-    char *name5 = new char[64];
-    strncpy(name5, "5nd", 64);
-    Thread *newThread = new Thread(name5);
-    newThread->Fork(SimpleThread, (void *) name5);
-
-    SimpleThread((void *) "1st");
+    for (int i = 0; i < 4; i++)
+    {
+        char *name = new char[64];
+        strncpy(name, "hilo ", 64);
+        char n = i + 50;
+        name[5] = n;
+        Thread *newThread = new Thread(name);
+        newThread->Fork(SimpleThread, (void *)name);
+    }
+    SimpleThread((void *)"hilo 1");
 }
