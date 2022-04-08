@@ -45,10 +45,11 @@ void
 Condition::Wait()
 {
     ASSERT(lock->IsHeldByCurrentThread());
-    lock->Release();
     Semaphore *semWait = new Semaphore(name, 0);
     queue->Append(semWait);
+    lock->Release();
     semWait->P();
+    delete semWait;
     lock->Acquire();
 }
 
@@ -60,7 +61,6 @@ Condition::Signal()
     {
         Semaphore *semWoken = queue->Pop();
         semWoken->V();
-        delete semWoken;
     }
 }
 
@@ -72,6 +72,5 @@ Condition::Broadcast()
     {
         Semaphore *semWoken = queue->Pop();
         semWoken->V();
-        delete semWoken;
     }
 }
