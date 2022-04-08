@@ -14,6 +14,8 @@
 
 static const int items = 10;
 int buffer = 0;
+static const int N_PROD_CONS = 2;
+bool done[N_PROD_CONS];
 
 Lock *lock = new Lock("lockProdCons");
 Condition *condFull = new Condition("condition full", lock);
@@ -25,6 +27,7 @@ void producer (void* arg)
     while (1) {
         lock->Acquire();
         while (buffer == items) {
+            printf ("%s producer espera\n", currentThread->GetName());
             condFull->Wait();
         }
         printf("%s produciendo\n", currentThread->GetName());
@@ -41,6 +44,7 @@ void consumer (void* arg)
     while (1) {
         lock->Acquire();
         while (buffer == 0) {
+            printf ("%s consumer espera\n", currentThread->GetName());
             condEmpty->Wait();
         }
         printf("%s consumiendo\n", currentThread->GetName());
@@ -55,8 +59,17 @@ void
 ThreadTestProdCons()
 {
     Thread *tProd = new Thread("hilo prod");
+    done[0] = false;
     tProd->Fork(producer, nullptr);
+    
 
     Thread *tCons = new Thread("hilo cons");
+    done[1] = false;
     tCons->Fork(consumer, nullptr);
+
+    for (unsigned i = 0; i < N_PROD_CONS; i++) {
+        while (!done[i]) {
+            currentThread->Yield();
+        }
+    }
 }
