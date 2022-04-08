@@ -43,8 +43,8 @@ void
 Lock::Acquire()
 {
     ASSERT(!IsHeldByCurrentThread());
-    owner = currentThread->GetName();
-    sem->P();   
+    sem->P();
+    owner = currentThread->GetName(); 
 }
 
 void
