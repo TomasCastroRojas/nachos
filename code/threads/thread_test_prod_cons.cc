@@ -14,7 +14,7 @@
 static const int CICLOS = 5;
 static const int CAPACIDAD = 10;
 int buffer = 0;
-static const int N_PROD = 2;
+static const int N_PROD = 3;
 static const int N_CONS = 2;
 static const int N_PROD_CONS = N_PROD + N_CONS;
 bool done[N_PROD_CONS];
@@ -40,7 +40,6 @@ static void producer (void* arg)
         condEmpty->Signal();
         printf("[PRODUCER]: %s -- buffer = %d\n",currentThread->GetName(), buffer);
         lock->Release();
-        printf("[PRODUCER]: %s after release\n",currentThread->GetName());
         currentThread->Yield();
     }
     int id = *(int*)arg;
