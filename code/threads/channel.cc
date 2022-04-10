@@ -1,42 +1,53 @@
 #include "channel.hh"
+#include "system.hh"
 
 Channel::Channel(const char *debugName)
 {
     name = debugName;
     buffer = nullptr;
-    lockSend = new Lock("send lock");
-    lockRecv = new Lock("receive lock");
-    semSend = new Semaphore("semaphore send", 0);
-    semRecv = new Semaphore("semaphore recv", 0);
+    lock = new Lock("channel lock");
+    condRecv = new Condition("receive condition", lock);
+    condSend = new Condition("send condition", lock);
 }
 
 Channel::~Channel()
 {
-    delete lockSend;
-    delete lockRecv;
-    delete semSend;
-    delete semRecv;
+    delete lock;
+    delete condRecv;
+    delete condSend;
+}
+
+const char *
+Channel::GetName() const
+{
+    return name;
 }
 
 void
 Channel::Send(int message)
 {
-    lockSend->Acquire();
-    semSend->P();
-    ASSERT(buffer != nullptr);
+    lock->Acquire();
+
+    while(buffer == nullptr)
+        condRecv->Wait();
     *buffer = message;
-    semRecv->V();
-    lockSend->Release();
+    condSend->Signal();
+
+    lock->Release();
 }
 
 void
-Channel::Receive(int *message) 
+Channel::Receive(int *message)
 {
-    lockRecv->Acquire();
-    ASSERT (buffer == nullptr);
+    lock->Acquire();
+
+    while(buffer != nullptr)
+        condSend->Wait();
     buffer = message;
-    semSend->V();
-    semRecv->P();
+    condRecv->Signal();
+    condSend->Wait();
     buffer = nullptr;
-    lockRecv->Release();
+
+    lock->Release();
 }
+

@@ -15,7 +15,7 @@
 #define NACHOS_THREADS_CHANNEL__HH
 
 
-#include "lock.hh"
+#include "condition.hh"
 
 class Channel {
 public:
@@ -24,7 +24,7 @@ public:
 
     ~Channel();
 
-    const char* getName() const;
+    const char* GetName() const;
 
     void Send(int message);
     void Receive(int *message);
@@ -33,10 +33,8 @@ private:
     const char *name;
 
     int *buffer;
-
-    Lock *lockSend, *lockRecv;
-
-    Semaphore *semSend, *semRecv;
+    Lock *lock;
+    Condition *condRecv, *condSend;;
 };
 
 #endif
