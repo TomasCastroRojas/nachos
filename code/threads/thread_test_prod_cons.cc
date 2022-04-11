@@ -74,14 +74,17 @@ void
 ThreadTestProdCons()
 {
     
+    List<Thread*> *prods = new List<Thread*>;
+    List<Thread*> *cons = new List<Thread*>;
     for (int i = 0; i < N_CONS; ++i) 
     {
         char *name = new char[64];
         sprintf(name, "Consumidor %u", i);
         int* n = new int;
         *n = i;
-        Thread *tCons = new Thread(name);
+        Thread *tCons = new Thread(name, true);
         tCons->Fork(consumer, (void*)n);
+        cons->Append(tCons);
     }
     for (int i = 0; i < N_PROD; ++i) 
     {
@@ -89,16 +92,22 @@ ThreadTestProdCons()
         sprintf(name, "Productor %u", i);
         int* n = new int;
         *n = i + N_CONS;
-        Thread *tProd = new Thread(name);
+        Thread *tProd = new Thread(name, true);
         tProd->Fork(producer, (void*)n);
+        prods->Append(tProd);
     }
 
-
-    for (unsigned i = 0; i < N_PROD_CONS; i++) {
-        printf("[HARDCORE JOIN]: %u\n", i);
-        while (!done[i]) {
-            printf("[NOT DONE]: hilo %u\n", i);
-            currentThread->Yield();
-        }
+    Thread *t;
+    while (!cons->IsEmpty()) 
+    {
+        t = cons->Pop();
+        t->Join();
     }
+
+    while (!prods->IsEmpty()) 
+    {
+        t = prods->Pop();
+        t->Join();
+    }
+
 }
