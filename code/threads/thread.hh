@@ -40,6 +40,7 @@
 
 
 #include "lib/utility.hh"
+#include "channel.hh"
 
 #ifdef USER_PROGRAM
 #include "machine/machine.hh"
@@ -97,7 +98,7 @@ private:
 public:
 
     /// Initialize a `Thread`.
-    Thread(const char *debugName);
+    Thread(const char *debugName, bool joinable);
 
     /// Deallocate a Thread.
     ///
@@ -118,6 +119,9 @@ public:
 
     /// The thread is done executing.
     void Finish();
+
+    /// Parent thread waits for fork thread to finish
+    int Join();
 
     /// Check if thread has overflowed its stack.
     void CheckOverflow() const;
@@ -140,6 +144,10 @@ private:
     ThreadStatus status;
 
     const char *name;
+
+    // Thread joinable, if not channel never allocated
+    bool join;
+    Channel *channel = nullptr;
 
     /// Allocate a stack for thread.  Used internally by `Fork`.
     void StackAllocate(VoidFunctionPtr func, void *arg);
