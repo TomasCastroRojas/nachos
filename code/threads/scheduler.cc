@@ -160,3 +160,11 @@ Scheduler::Print()
 
     }
 }
+
+void
+Scheduler::SwitchPriority(Thread *thread, unsigned newPriority)
+{
+    readyList[thread->GetPriority()]->Remove(thread);
+    thread->UpdatePriority(newPriority);
+    readyList[newPriority]->Append(thread);
+}
