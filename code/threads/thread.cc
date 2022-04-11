@@ -20,6 +20,7 @@
 #include "thread.hh"
 #include "switch.h"
 #include "system.hh"
+#include "channel.hh"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -144,7 +145,8 @@ Thread::Print() const
     printf("%s, ", name);
 }
 
-int Thread::Join()
+int 
+Thread::Join()
 {
     ASSERT(this != currentThread);
     ASSERT(join);
@@ -153,7 +155,6 @@ int Thread::Join()
     delete channel;
 
     return buffer;
-
 }
 
 /// Called by `ThreadRoot` when a thread is done executing the forked

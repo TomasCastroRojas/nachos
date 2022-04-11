@@ -40,7 +40,8 @@
 
 
 #include "lib/utility.hh"
-#include "channel.hh"
+
+class Channel;
 
 #ifdef USER_PROGRAM
 #include "machine/machine.hh"
@@ -120,9 +121,6 @@ public:
     /// The thread is done executing.
     void Finish();
 
-    /// Parent thread waits for fork thread to finish
-    int Join();
-
     /// Check if thread has overflowed its stack.
     void CheckOverflow() const;
 
@@ -131,6 +129,9 @@ public:
     const char *GetName() const;
 
     void Print() const;
+
+    /// Parent thread waits for fork thread to finish
+    int Join();
 
 private:
     // Some of the private data for this class is listed above.
@@ -145,12 +146,12 @@ private:
 
     const char *name;
 
+    /// Allocate a stack for thread.  Used internally by `Fork`.
+    void StackAllocate(VoidFunctionPtr func, void *arg);
+
     // Thread joinable, if not channel never allocated
     bool join;
     Channel *channel = nullptr;
-
-    /// Allocate a stack for thread.  Used internally by `Fork`.
-    void StackAllocate(VoidFunctionPtr func, void *arg);
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.
