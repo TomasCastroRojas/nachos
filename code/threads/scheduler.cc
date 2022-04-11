@@ -27,7 +27,7 @@
 /// Initialize the list of ready but not running threads to empty.
 Scheduler::Scheduler()
 {   
-    for (unsigned int i = 0; i < N_QUEUES; ++i)
+    for (unsigned int i = 0; i < MAX_PRIORITY; ++i)
     {
         readyList[i] = new List<Thread *>;
     }
@@ -36,7 +36,7 @@ Scheduler::Scheduler()
 /// De-allocate the list of ready threads.
 Scheduler::~Scheduler()
 {   
-    for (unsigned int i = 0; i < N_QUEUES; ++i)
+    for (unsigned int i = 0; i < MAX_PRIORITY; ++i)
     {
         delete readyList[i];
     }
@@ -67,7 +67,7 @@ Scheduler::FindNextToRun()
 {
     bool found = false;
     Thread *next = nullptr;
-    for (unsigned int i = N_QUEUES-1; i >= 0 && found; --i)
+    for (unsigned int i = MAX_PRIORITY-1; i >= 0 && found; --i)
     {
         if(!readyList[i]->IsEmpty())
         {
@@ -155,7 +155,7 @@ void
 Scheduler::Print()
 {
     printf("Ready list contents:\n");
-    for( unsigned int i = N_QUEUES -1; i >= 0; --i){
+    for( unsigned int i = MAX_PRIORITY -1; i >= 0; --i){
             readyList[i]->Apply(ThreadPrint);
 
     }
