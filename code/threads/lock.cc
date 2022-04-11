@@ -44,7 +44,7 @@ Lock::Acquire()
 {
     ASSERT(!IsHeldByCurrentThread());
     sem->P();
-    owner = currentThread->GetName(); 
+    owner = currentThread; 
 }
 
 void
@@ -58,5 +58,5 @@ Lock::Release()
 bool
 Lock::IsHeldByCurrentThread() const
 {
-    return owner == currentThread->GetName();
+    return owner == currentThread;
 }
