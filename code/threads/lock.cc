@@ -43,6 +43,10 @@ void
 Lock::Acquire()
 {
     ASSERT(!IsHeldByCurrentThread());
+    if (owner != nullptr && owner->GetPriority() < currentThread->GetPriority())
+    {
+        scheduler->SwitchPriority(owner, currentThread->GetPriority());
+    }
     sem->P();
     owner = currentThread; 
 }
@@ -51,6 +55,7 @@ void
 Lock::Release()
 {
     ASSERT(IsHeldByCurrentThread());
+    owner->RestorePriority();
     owner = nullptr;
     sem->V();
 }
