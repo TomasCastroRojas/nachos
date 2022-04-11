@@ -50,7 +50,6 @@ class Channel;
 
 #include <stdint.h>
 
-
 /// CPU register state to be saved on context switch.
 ///
 /// x86 processors needs 9 32-bit registers, whereas x64 has 8 extra
@@ -133,7 +132,11 @@ public:
     /// Parent thread waits for fork thread to finish
     int Join();
 
-    unsigned int GetPrio();
+    unsigned int GetPriority();
+
+    void UpdatePriority(unsigned newPrio);
+
+    void RestorePriority();
 
 private:
     // Some of the private data for this class is listed above.
@@ -156,6 +159,7 @@ private:
     Channel *channel = nullptr;
     
     unsigned int priority;
+    unsigned int oldPriority;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

@@ -49,6 +49,7 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int prio)
     status   = JUST_CREATED;
     join     = joinable;
     priority = prio;
+    oldPriority = prio;
     if (join) 
         channel = new Channel("join channel");
 #ifdef USER_PROGRAM
@@ -247,6 +248,25 @@ Thread::Sleep()
     }
 
     scheduler->Run(nextThread);  // Returns when we have been signalled.
+}
+
+unsigned int
+Thread::GetPriority()
+{
+    return priority;
+}
+
+void
+Thread::UpdatePriority(unsigned int newPrio)
+{
+    oldPriority = priority;
+    priority = newPrio;
+}
+
+void
+Thread::RestorePriority()
+{
+    priority = oldPriority;
 }
 
 /// ThreadFinish, InterruptEnable
