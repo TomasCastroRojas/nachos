@@ -14,6 +14,7 @@
 #include "thread.hh"
 #include "lib/list.hh"
 
+const unsigned int N_QUEUES = 2;
 
 /// The following class defines the scheduler/dispatcher abstraction --
 /// the data structures and operations needed to keep track of which
@@ -42,7 +43,7 @@ public:
 private:
 
     // Queue of threads that are ready to run, but not running.
-    List<Thread*> *readyList;
+    List<Thread*> *readyList[N_QUEUES];
 
 };
 
