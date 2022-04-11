@@ -41,13 +41,14 @@ IsThreadStatus(ThreadStatus s)
 /// `Thread::Fork`.
 ///
 /// * `threadName` is an arbitrary string, useful for debugging.
-Thread::Thread(const char *threadName, bool joinable)
+Thread::Thread(const char *threadName, bool joinable, unsigned int prio)
 {
     name     = threadName;
     stackTop = nullptr;
     stack    = nullptr;
     status   = JUST_CREATED;
     join     = joinable;
+    priority = prio;
     if (join) 
         channel = new Channel("join channel");
 #ifdef USER_PROGRAM

@@ -99,7 +99,7 @@ private:
 public:
 
     /// Initialize a `Thread`.
-    Thread(const char *debugName, bool joinable);
+    Thread(const char *debugName, bool joinable, unsigned int prio);
 
     /// Deallocate a Thread.
     ///
@@ -133,6 +133,8 @@ public:
     /// Parent thread waits for fork thread to finish
     int Join();
 
+    unsigned int GetPrio();
+
 private:
     // Some of the private data for this class is listed above.
 
@@ -152,6 +154,8 @@ private:
     // Thread joinable, if not channel never allocated
     bool join;
     Channel *channel = nullptr;
+    
+    unsigned int priority;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.
