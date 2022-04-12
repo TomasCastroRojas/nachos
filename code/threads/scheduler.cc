@@ -54,7 +54,7 @@ Scheduler::ReadyToRun(Thread *thread)
     DEBUG('t', "Putting thread %s on ready list\n", thread->GetName());
 
     thread->SetStatus(READY);
-    //readyList[thread->GetPrio ]->Append(thread);
+    readyList[thread->GetPriority()]->Append(thread);
 }
 
 /// Return the next thread to be scheduled onto the CPU.
@@ -67,14 +67,17 @@ Scheduler::FindNextToRun()
 {
     bool found = false;
     Thread *next = nullptr;
-    for (unsigned int i = MAX_PRIORITY-1; i >= 0 && found; --i)
+    DEBUG('t', "Finding next thread to run\n");
+    for (int i = MAX_PRIORITY-1; i >= 0 && !found; --i)
     {
+        DEBUG('t', "Searching in level %d of priority\n", i);
         if(!readyList[i]->IsEmpty())
         {
             found = true;
             next = readyList[i]->Pop();
         }
     }
+    if (found) DEBUG('t', "Next thread to run is \"%s\" \n", next->GetName());
     return next;
 }
 
@@ -155,7 +158,7 @@ void
 Scheduler::Print()
 {
     printf("Ready list contents:\n");
-    for( unsigned int i = MAX_PRIORITY -1; i >= 0; --i){
+    for(int i = MAX_PRIORITY -1; i >= 0; --i){
             readyList[i]->Apply(ThreadPrint);
 
     }
@@ -166,5 +169,5 @@ Scheduler::SwitchPriority(Thread *thread, unsigned newPriority)
 {
     readyList[thread->GetPriority()]->Remove(thread);
     thread->UpdatePriority(newPriority);
-    readyList[newPriority]->Append(thread);
+    ReadyToRun(thread);
 }
