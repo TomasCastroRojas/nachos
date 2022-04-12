@@ -13,7 +13,7 @@
 
 
 static const unsigned NUM_TURNSTILES = 2;
-static const unsigned ITERATIONS_PER_TURNSTILE = 100;
+static const unsigned ITERATIONS_PER_TURNSTILE = 5;
 static int count;
 Semaphore *s = new Semaphore("Sem jardin", 1);
 
@@ -42,7 +42,7 @@ ThreadTestGarden()
         sprintf(name, "Turnstile %u", i);
         unsigned *n = new unsigned;
         *n = i;
-        Thread *t = new Thread(name, true);
+        Thread *t = new Thread(name, true, 0);
         t->Fork(Turnstile, (void *) n);
         turnstiles->Append(t);
     }
@@ -85,7 +85,7 @@ ThreadTestGardenSem()
         sprintf(name, "Turnstile %u", i);
         unsigned *n = new unsigned;
         *n = i;
-        Thread *t = new Thread(name, true);
+        Thread *t = new Thread(name, true, 0);
         t->Fork(TurnstileSem, (void *) n);
         turnstiles->Append(t);
     }

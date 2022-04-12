@@ -82,7 +82,7 @@ ThreadTestProdCons()
         sprintf(name, "Consumidor %u", i);
         int* n = new int;
         *n = i;
-        Thread *tCons = new Thread(name, true);
+        Thread *tCons = new Thread(name, true, 0);
         tCons->Fork(consumer, (void*)n);
         cons->Append(tCons);
     }
@@ -92,7 +92,7 @@ ThreadTestProdCons()
         sprintf(name, "Productor %u", i);
         int* n = new int;
         *n = i + N_CONS;
-        Thread *tProd = new Thread(name, true);
+        Thread *tProd = new Thread(name, true, 0);
         tProd->Fork(producer, (void*)n);
         prods->Append(tProd);
     }

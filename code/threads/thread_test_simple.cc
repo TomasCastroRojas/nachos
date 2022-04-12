@@ -59,7 +59,7 @@ ThreadTestSimple()
         strncpy(name, "hilo ", 64);
         char n = i + 50;
         name[5] = n;
-        Thread *newThread = new Thread(name, false);
+        Thread *newThread = new Thread(name, false, 0);
         newThread->Fork(SimpleThread, (void *)name);
     }
     SimpleThread((void *)"hilo 1");
