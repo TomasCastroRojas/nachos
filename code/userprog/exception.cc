@@ -143,6 +143,13 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_EXIT: {
+            int status = machine->ReadRegister(4);
+            DEBUG('e', "Thread '%s' exiting with status %d\n", currentThread->GetName(), status);
+            currentThread->Finish(status);
+            break;
+        }
+
         case SC_CLOSE: {
             int fid = machine->ReadRegister(4);
             DEBUG('e', "`Close` requested for id %u.\n", fid);

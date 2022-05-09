@@ -171,7 +171,7 @@ Thread::Join()
 /// NOTE: we disable interrupts, so that we do not get a time slice between
 /// setting `threadToBeDestroyed`, and going to sleep.
 void
-Thread::Finish()
+Thread::Finish(int returnValue)
 {
     interrupt->SetLevel(INT_OFF);
     ASSERT(this == currentThread);
@@ -179,7 +179,7 @@ Thread::Finish()
     DEBUG('t', "Finishing thread \"%s\"\n", GetName());
 
     if (join)
-        channel->Send(0);
+        channel->Send(returnValue);
     
     threadToBeDestroyed = currentThread;
     Sleep();  // Invokes `SWITCH`.
@@ -277,7 +277,7 @@ Thread::RestorePriority()
 static void
 ThreadFinish()
 {
-    currentThread->Finish();
+    currentThread->Finish(0);
 }
 
 static void
