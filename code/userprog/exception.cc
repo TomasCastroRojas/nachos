@@ -93,6 +93,7 @@ SyscallHandler(ExceptionType _et)
             int filenameAddr = machine->ReadRegister(4);
             if (filenameAddr == 0) {
                 DEBUG('e', "Error: address to filename string is null.\n");
+                machine->WriteRegister(2, -1);
             }
 
             char filename[FILE_NAME_MAX_LEN + 1];
@@ -100,9 +101,17 @@ SyscallHandler(ExceptionType _et)
                                     filename, sizeof filename)) {
                 DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
                       FILE_NAME_MAX_LEN);
+                machine->WriteRegister(2, -1);
             }
 
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
+            if (!fileSystem->Create(filename, 0)) {
+                DEBUG('e', "Error: Failed to create file %s\n", filename);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+
+            machine->WriteRegister(2,0);
             break;
         }
 
