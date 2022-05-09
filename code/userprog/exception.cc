@@ -115,6 +115,33 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_REMOVE: {
+            int filenameAddr = machine->ReadRegister(4);
+            if (filenameAddr == 0) {
+                DEBUG('e', "Error: address to filename string is null.\n");
+                machine->WriteRegister(2, -1);
+            }
+
+            char filename[FILE_NAME_MAX_LEN + 1];
+            if (!ReadStringFromUser(filenameAddr,
+                                    filename, sizeof filename)) {
+                DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
+                      FILE_NAME_MAX_LEN);
+                machine->WriteRegister(2, -1);
+            }
+
+            DEBUG('e', "`Remove` requested for file `%s`.\n", filename);
+            if (!fileSystem->Remove(filename)) {
+                DEBUG('e', "Error: Failed to remove file %s\n", filename);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+
+            DEBUG('e', "File '%s' removed.\n", filename);
+            machine->WriteRegister(2,0);
+            break;
+        }
+
         case SC_CLOSE: {
             int fid = machine->ReadRegister(4);
             DEBUG('e', "`Close` requested for id %u.\n", fid);
