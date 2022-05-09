@@ -111,6 +111,7 @@ SyscallHandler(ExceptionType _et)
                 break;
             }
 
+            DEBUG('e', "File '%s' created.\n", filename);
             machine->WriteRegister(2,0);
             break;
         }
