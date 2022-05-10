@@ -54,6 +54,9 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int prio)
         channel = new Channel("join channel");
 #ifdef USER_PROGRAM
     space    = nullptr;
+    filesTable = new Table<OpenFile*>;
+    filesTable->Add(nullptr); // Console INPUT
+    filesTable->Add(nullptr); // Console OUTPUT
 #endif
 }
 
@@ -74,6 +77,10 @@ Thread::~Thread()
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
+#ifdef USER_PROGRAM
+    delete filesTable;
+    delete space;
+#endif
 }
 
 /// Invoke `(*func)(arg)`, allowing caller and callee to execute
