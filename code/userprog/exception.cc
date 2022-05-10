@@ -159,32 +159,34 @@ SyscallHandler(ExceptionType _et)
         case SC_READ: {
           int buffer = machine->ReadRegister(4);
           int size = machine->ReadRegister(5);
-          OpenFileId id = machine->ReadRegister(6);
-          char bufferSys[size];
+          OpenFileId fid = machine->ReadRegister(6);
           int bytesRead = 0;
+
           if (size <= 0) {
             DEBUG('e',"Error: Invalid size.\n");
             machine->WriteRegister(2, -1);
             break;
-          } else if (id == CONSOLE_OUTPUT || id < 0) {
+          } 
+          char bufferSys[size];
+          if (fid == CONSOLE_OUTPUT || fid < 0) {
             DEBUG('e', "Error: Invalid file for reading.\n");
             machine->WriteRegister(2,-1);
             break;
-          } else if(id == CONSOLE_INPUT) {
+          } else if(fid == CONSOLE_INPUT) {
                 DEBUG('e', "Reading from console.\n");
                 synchConsole->ReadBuffer(bufferSys, size);
                 bytesRead = size;
                 WriteBufferToUser(bufferSys, buffer, bytesRead);
             } else {
-            if (currentThread->) {
-              DEBUG('e', "Reading from file with id %u.\n", id);
-              OpenFile *file = currentThread->filesTable->Get(id);
-              bytesRead = file->Read(bufferSys, size);
-              if (bytesRead > 0) {
-                WriteBufferToUser(bufferSys, buffer, bytesRead);
-              }
+                if (currentThread->filesTable->HasKey(fid)) {
+                    DEBUG('e', "Reading from file with id %u.\n", fid);
+                    OpenFile *file = currentThread->filesTable->Get(fid);
+                    bytesRead = file->Read(bufferSys, size);
+                    if (bytesRead > 0) {
+                        WriteBufferToUser(bufferSys, buffer, bytesRead);
+                    }
             } else {
-                DEBUG('e', "File with id %u does not exists.\n", id);
+                DEBUG('e', "File with id %u does not exists.\n", fid);
                 machine->WriteRegister(2, -1);
                 break;
             }
@@ -193,14 +195,51 @@ SyscallHandler(ExceptionType _et)
 
           break;
         }
+        
+        case SC_WRITE: {
+          int buffer = machine->ReadRegister(4);
+          int size = machine->ReadRegister(5);
+          OpenFileId fid = machine->ReadRegister(6);
+          int bytesWrite = 0;
 
+          if (size <= 0) {
+            DEBUG('e',"Error: Invalid size.\n");
+            machine->WriteRegister(2, -1);
+            break;
+          } 
+          char bufferSys[size];
+          if (fid == CONSOLE_INPUT || fid < 0) {
+            DEBUG('e', "Error: Invalid file for writing.\n");
+            machine->WriteRegister(2,-1);
+            break;
+          } else if(fid == CONSOLE_OUTPUT) {
+                DEBUG('e', "writing to console.\n");
+                ReadBufferFromUser(buffer, bufferSys, size);
+                synchConsole->WriteBuffer(bufferSys, size);
+                bytesWrite = size;
+          } else {
+              if (currentThread->filesTable->HasKey(fid)){
+                DEBUG('e', "Writing to file with id %u.\n", fid);
+                OpenFile *file = currentThread->filesTable->Get(fid);
+                ReadBufferFromUser(buffer, bufferSys, size);
+                bytesWrite = file->Write(bufferSys, size);
+              } else {
+                DEBUG('e', "File with id %u does not exists.\n", fid);
+                machine->WriteRegister(2, -1);
+                break;
+                }
+            }
+            machine->WriteRegister(2, bytesWrite);
+
+          break;
+        }
         default:
             fprintf(stderr, "Unexpected system call: id %d.\n", scid);
             ASSERT(false);
-
     }
 
     IncrementPC();
+
 }
 
 
