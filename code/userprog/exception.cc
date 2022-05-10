@@ -156,6 +156,44 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_READ: {
+          int buffer = machine->ReadRegister(4);
+          int size = machine->ReadRegister(5);
+          OpenFileId id = machine->ReadRegister(6);
+          char bufferSys[size];
+          int bytesRead = 0;
+          if (size <= 0) {
+            DEBUG('e',"Error: Invalid size.\n");
+            machine->WriteRegister(2, -1);
+            break;
+          } else if (id == CONSOLE_OUTPUT || id < 0) {
+            DEBUG('e', "Error: Invalid file for reading.\n");
+            machine->WriteRegister(2,-1);
+            break;
+          } else if(id == CONSOLE_INPUT) {
+                DEBUG('e', "Reading from console.\n");
+                synchConsole->ReadBuffer(bufferSys, size);
+                bytesRead = size;
+                WriteBufferToUser(bufferSys, buffer, bytesRead);
+            } else {
+            if (currentThread->) {
+              DEBUG('e', "Reading from file with id %u.\n", id);
+              OpenFile *file = currentThread->filesTable->Get(id);
+              bytesRead = file->Read(bufferSys, size);
+              if (bytesRead > 0) {
+                WriteBufferToUser(bufferSys, buffer, bytesRead);
+              }
+            } else {
+                DEBUG('e', "File with id %u does not exists.\n", id);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+          }
+          machine->WriteRegister(2, bytesRead);
+
+          break;
+        }
+
         default:
             fprintf(stderr, "Unexpected system call: id %d.\n", scid);
             ASSERT(false);
