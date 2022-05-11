@@ -195,7 +195,7 @@ SyscallHandler(ExceptionType _et)
             }
             DEBUG('e', "`Close` requested for id %u.\n", fid);
 
-            if (currentThread->filesTable->Haskey(fid)) {
+            if (currentThread->filesTable->HasKey(fid)) {
               delete currentThread->filesTable->Remove(fid);
               DEBUG('e', "File id %u closed.\n", fid);
               machine->WriteRegister(2, 1);
@@ -282,8 +282,9 @@ SyscallHandler(ExceptionType _et)
             }
             machine->WriteRegister(2, bytesWrite);
 
-          break;
+            break;
         }
+
         default:
             fprintf(stderr, "Unexpected system call: id %d.\n", scid);
             ASSERT(false);
