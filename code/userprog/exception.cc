@@ -169,7 +169,7 @@ SyscallHandler(ExceptionType _et)
 
           OpenFile *file = fileSystem->Open(filename);
 
-          if (file == nullptr) {
+          if (!file) {
             machine->WriteRegister(2, -1);
             DEBUG('e', "File not found\n");
             break;
