@@ -159,7 +159,12 @@ Scheduler::Print()
 {
     printf("Ready list contents:\n");
     for(int i = MAX_PRIORITY -1; i >= 0; --i){
+        if (readyList[i]->IsEmpty()) {
+            printf("Is empty\n");
+        } else {
             readyList[i]->Apply(ThreadPrint);
+            printf("\n");
+        }
 
     }
 }
