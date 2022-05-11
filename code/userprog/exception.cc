@@ -26,9 +26,28 @@
 #include "syscall.h"
 #include "filesys/directory_entry.hh"
 #include "threads/system.hh"
+#include "args.hh"
 
 #include <stdio.h>
 
+
+void
+InitProcess(void* args)
+{
+    currentThread->space->InitRegisters();  // Set the initial register values.
+    currentThread->space->RestoreState();   // Load page table register.    
+
+    if (args != nullptr) {
+        unsigned argc = WriteArgs((char**)args);
+        machine->WriteRegister(4, argc);
+
+        int space = machine->ReadRegister(STACK_REG);
+        machine->WriteRegister(5, space);
+        machine->WriteRegister(STACK_REG, space - 24); // MIPS call convention
+    }
+
+    machine->Run();  // Jump to the user progam.
+}
 
 static void
 IncrementPC()
@@ -282,6 +301,64 @@ SyscallHandler(ExceptionType _et)
             }
             machine->WriteRegister(2, bytesWrite);
 
+            break;
+        }
+
+        case SC_JOIN: {
+            SpaceId id = machine->ReadRegister(4);
+            if(!runningThreads->HasKey(id)){
+            //osea si no existe y entra aca es pq no se encontro un hilo creo
+                DEBUG('e',"'Join' Error: No Thread.\n");
+                machine->WriteRegister(2,-1);
+            }
+            DEBUG('e',"'Join' requested by thread %s. \n", currentThread->GetName());
+            Thread *child = runningThreads->Get(id);
+            int retVal = child->Join();
+            machine->WriteRegister(2, retVal);
+
+            break;
+        }
+        
+        case SC_EXEC: {
+            int fileNameAddr = machine->ReadRegister(4);
+            bool joinable = machine->ReadRegister(5);
+            int argvAddr = machine->ReadRegister(6)
+
+            if (fileNameAddr == 0) {
+                DEBUG('e', "'Exec' Error: fileNameAdrr is null\n");
+                machine->WriteRegister(2, -1);
+            }
+            char *filename = new char[FILE_NAME_MAX_LEN + 1];
+            if (!ReadStringFromUser(fileNameAddr, filename, FILE_NAME_MAX_LEN)) {
+                DEBUG('e', "'Exec' Error: filename string too long (maximum is %u bytes).\n",
+                      FILE_NAME_MAX_LEN);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+
+            OpenFile *execFile = fileSystem->Open(filename);
+            if (!execFile) {
+                DEBUG('e', "'ExecÂ' Error: File %s not found.\n", filename);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+
+            Thread* child = new Thread(filename, false, currentThread->GetPriority());
+            child->space = new AddressSpace(execFile);
+
+            char **argv = nullptr;
+            if (!argvAddr) {
+                argv = SaveArgs(argvAddr);
+            }
+            child->Fork(InitProcess, argv);
+
+            machine->WriteRegister(2, child->spaceId);
+            break;
+        }
+
+        case SC_STATE: {
+            DEBUG('e',"Scheduler state.\n");
+            scheduler->Print();
             break;
         }
 
