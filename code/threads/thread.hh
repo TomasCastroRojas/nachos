@@ -181,6 +181,8 @@ public:
     // User code this thread is running.
     AddressSpace *space;
 
+    SpaceId spaceId;
+
     Table<OpenFile*> *filesTable;
 #endif
 };

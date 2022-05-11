@@ -57,6 +57,8 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int prio)
     filesTable = new Table<OpenFile*>;
     filesTable->Add(nullptr); // Console INPUT
     filesTable->Add(nullptr); // Console OUTPUT
+
+    spaceId = runningThread->Add(this);
 #endif
 }
 
