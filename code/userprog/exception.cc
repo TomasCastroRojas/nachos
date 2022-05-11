@@ -150,9 +150,60 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_OPEN: {
+          int fileNameAddr = machine->ReadRegister(4);
+
+          if (fileNameAddr == 0) {
+             machine->WriteRegister(2, -1);
+             DEBUG('e', "Error: address to filename string is null.\n");
+             break;
+          }
+
+          char filename[FILE_NAME_MAX_LEN + 1];
+
+          if (!ReadStringFromUser(fileNameAddr,filename,sizeof filename)) {
+             machine->WriteRegister(2, -1);
+             DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n", FILE_NAME_MAX_LEN);
+             break;
+          }
+
+          OpenFile *file = fileSystem->Open(filename);
+
+          if (file == nullptr) {
+            machine->WriteRegister(2, -1);
+            DEBUG('e', "File not found\n");
+            break;
+          }
+
+          OpenFileId fid = currentThread->filesTable->Add(file);
+
+          if(fid == -1) {
+            machine->WriteRegister(2, -1);
+            DEBUG('e', "Error: no space left to open file.\n");
+            break;
+          }
+
+          machine->WriteRegister(2, fid);
+          break;
+        }
+
         case SC_CLOSE: {
             int fid = machine->ReadRegister(4);
+            if (fid<0){
+              DEBUG('e', "File id not valid\n");
+              break;
+            }
             DEBUG('e', "`Close` requested for id %u.\n", fid);
+
+            if (currentThread->filesTable->Haskey(fid)) {
+              delete currentThread->filesTable->Remove(fid);
+              DEBUG('e', "File id %u closed.\n", fid);
+              machine->WriteRegister(2, 1);
+            } else {
+                DEBUG('e', "`Close` requested for id failed %u.\n", fid);
+                machine->WriteRegister(2, -1);
+                break;
+            }
             break;
         }
 
