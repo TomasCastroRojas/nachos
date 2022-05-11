@@ -45,6 +45,8 @@ SynchDisk *synchDisk;
 #ifdef USER_PROGRAM  // Requires either *FILESYS* or *FILESYS_STUB*.
 Machine *machine;  ///< User program memory and registers.
 SynchConsole *synchConsole;
+Bitmap *usedPages;
+Table<Thread*> *runningThreads; 
 #endif
 
 #ifdef NETWORK
@@ -203,7 +205,7 @@ Initialize(int argc, char **argv)
     debug.SetFlags(debugFlags);  // Initialize `DEBUG` messages.
     debug.SetOpts(debugOpts);    // Set debugging behavior.
     stats = new Statistics;      // Collect statistics.
-    interrupt = new Interrupt;   // Start up interrupt handling.
+    interrupt = new Interrupt;   // Start up interrupt handling   
     scheduler = new Scheduler;   // Initialize the ready queue.
     if (randomYield) {           // Start the timer (if needed).
         timer = new Timer(TimerInterruptHandler, 0, randomYield);
@@ -230,6 +232,10 @@ Initialize(int argc, char **argv)
     Debugger *d = debugUserProg ? new Debugger : nullptr;
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole("Synch Console");
+    usedPages = new Bitmap(NUM_PHYS_PAGES);
+    runningThreads = new Table<Thread*>;
+    if(!randomYield)
+        timer = new Timer(TimerInterruptHandler, 0, false);
     SetExceptionHandlers();
 #endif
 
@@ -262,6 +268,8 @@ Cleanup()
 #ifdef USER_PROGRAM
     delete machine;
     delete synchConsole;
+    delete usedPages;
+    delete runningThreads;
 #endif
 
 #ifdef FILESYS_NEEDED
