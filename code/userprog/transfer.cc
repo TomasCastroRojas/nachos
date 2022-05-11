@@ -53,8 +53,8 @@ void WriteBufferToUser(const char *buffer, int userAddress,
   unsigned count = 0;
   do {
       int temp;
-      temp = (int)(buffer[count++])
-      ASSERT(machine->WriteMem(userAddress++, 1, &temp));
+      temp = (int)(buffer[count++]);
+      ASSERT(machine->WriteMem(userAddress++, 1, temp));
   } while (count < byteCount);
 }
 
@@ -63,9 +63,8 @@ void WriteStringToUser(const char *string, int userAddress)
   ASSERT(userAddress != 0);
   ASSERT(string != nullptr);
 
-  unsigned count = 0;
   do {
       int temp = (int) *string;
-      ASSERT(machine->WriteMem(userAddress++, 1, &temp));
+      ASSERT(machine->WriteMem(userAddress++, 1, temp));
   } while (*string++ != '\0');
 }
