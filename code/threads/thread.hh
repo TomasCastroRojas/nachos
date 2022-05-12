@@ -47,6 +47,7 @@ class Channel;
 #include "machine/machine.hh"
 #include "userprog/address_space.hh"
 #include "lib/table.hh"
+#include "userprog/syscall.h"
 #endif
 
 #include <stdint.h>
