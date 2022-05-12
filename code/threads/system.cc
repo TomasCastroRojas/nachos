@@ -210,7 +210,9 @@ Initialize(int argc, char **argv)
     if (randomYield) {           // Start the timer (if needed).
         timer = new Timer(TimerInterruptHandler, 0, randomYield);
     }
-
+#ifdef USER_PROGRAM
+    runningThreads = new Table<Thread*>;
+#endif
     threadToBeDestroyed = nullptr;
 
     // We did not explicitly allocate the current thread we are running in.
@@ -233,7 +235,6 @@ Initialize(int argc, char **argv)
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole("Synch Console");
     usedPages = new Bitmap(NUM_PHYS_PAGES);
-    runningThreads = new Table<Thread*>;
     if(!randomYield)
         timer = new Timer(TimerInterruptHandler, 0, false);
     SetExceptionHandlers();
