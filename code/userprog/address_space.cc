@@ -39,7 +39,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 
     // First, set up the translation.
 
-    char *mainMemory = machine->GetMMU()->mainMemory;
+    
     pageTable = new TranslationEntry[numPages];
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
@@ -51,7 +51,11 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
         pageTable[i].readOnly     = false;
           // If the code segment was entirely on a separate page, we could
           // set its pages to be read-only.
-        memset(mainMemory + pageTable[i].physicalPage * PAGE_SIZE, 0, PAGE_SIZE);
+    }
+    
+    char *mainMemory = machine->GetMMU()->mainMemory;
+    for (unsigned i = 0; i < numPages; i++) {
+        memset(mainMemory + (pageTable[i].physicalPage * PAGE_SIZE), 0, PAGE_SIZE);
     }
 
     // Then, copy in the code and data segments into memory.
@@ -75,7 +79,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
         uint32_t virtualAddr = exe.GetInitDataAddr();
         DEBUG('a', "Initializing data segment, at 0x%X, size %u\n",
               virtualAddr, initDataSize);
-        for (uint32_t i = 0; i < codeSize; i++) {
+        for (uint32_t i = 0; i < initDataSize; i++) {
           uint32_t physicalPage = pageTable[DivRoundDown(virtualAddr + i, PAGE_SIZE)].physicalPage;
 
           uint32_t offset = (virtualAddr + i) % PAGE_SIZE;
