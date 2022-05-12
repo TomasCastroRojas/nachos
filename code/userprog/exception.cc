@@ -322,7 +322,7 @@ SyscallHandler(ExceptionType _et)
         case SC_EXEC: {
             int fileNameAddr = machine->ReadRegister(4);
             bool joinable = machine->ReadRegister(5);
-            int argvAddr = machine->ReadRegister(6)
+            int argvAddr = machine->ReadRegister(6);
 
             if (fileNameAddr == 0) {
                 DEBUG('e', "'Exec' Error: fileNameAdrr is null\n");
@@ -343,7 +343,7 @@ SyscallHandler(ExceptionType _et)
                 break;
             }
 
-            Thread* child = new Thread(filename, false, currentThread->GetPriority());
+            Thread* child = new Thread(filename, joinable, currentThread->GetPriority());
             child->space = new AddressSpace(execFile);
 
             char **argv = nullptr;
