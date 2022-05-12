@@ -119,13 +119,20 @@ main(void)
 
         // Comment and uncomment according to whether command line arguments
         // are given in the system call or not.
-        const SpaceId newProc = Exec(line, 0, NULL);
         //const SpaceId newProc = Exec(line, argv);
 
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
 
-        Join(newProc);
+        if (line[0] == '&') {
+            const SpaceId newProc = Exec(line+1, 0, argv);
+        }
+        else {
+            const SpaceId newProc = Exec(line, 1, argv);
+            if (newProc >= 0)
+                Join(newProc);
+        }
+        
         // TODO: is it necessary to check for errors after `Join` too, or
         //       can you be sure that, with the implementation of the system
         //       call handler you made, it will never give an error?; what
