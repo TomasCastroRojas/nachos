@@ -86,7 +86,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 
           uint32_t physicalAddress = physicalPage * PAGE_SIZE + offset;
 
-          exe.ReadCodeBlock(&mainMemory[physicalAddress], 1, i);
+          exe.ReadDataBlock(&mainMemory[physicalAddress], 1, i);
         }
     }
 
