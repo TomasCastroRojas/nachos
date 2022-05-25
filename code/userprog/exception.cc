@@ -371,6 +371,47 @@ SyscallHandler(ExceptionType _et)
 
 }
 
+static void
+PageFaultHandler (ExceptionType _et)
+{
+    int badVAddr = machine->ReadRegister(BAD_VADDR_REG);
+    unsigned vpn = badVAddr / PAGE_SIZE;
+    
+    DEBUG('e', "Page fault in thread %s, virtual page %u, badVAddr %u\n",
+         currentThread->GetName(), vpn, badVAddr);
+    
+    TranslationEntry *entry = currentThread->space->GetTranslationEntry(vpn);
+
+    static int actualIndex = 0;
+    TranslationEntry *tlb = machine->GetMMU()->tlb;
+
+    if (tlb[actualIndex].valid) {
+        unsigned victimVpn = tlb[actualIndex].virtualPage;
+        TranslationEntry *victimEntry = currentThread->space->GetTranslationEntry(victimVpn);
+
+        victimEntry->use = tlb[actualIndex].use;
+        victimEntry->dirty = tlb[actualIndex].dirty;
+    }
+
+    tlb[actualIndex].virtualPage = vpn;
+    tlb[actualIndex].physicalPage = entry->physicalPage;
+    tlb[actualIndex].valid = entry->valid;
+    tlb[actualIndex].readOnly = entry->readOnly;
+    tlb[actualIndex].use = entry->use;
+    tlb[actualIndex].dirty = entry->dirty;
+
+    actualIndex++;
+    actualIndex %= TLB_SIZE;
+}
+
+static void
+ReadOnlytHandler (ExceptionType _et)
+{
+    unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
+    unsigned int numPage = badVAddr / PAGE_SIZE;
+    fprintf(stderr, "'Page 'ReadOnly' exception'. Virtual address: %d -- Page: %d\n", badVAddr, numPage);
+    ASSERT(false);
+}
 
 /// By default, only system calls have their own handler.  All other
 /// exception types are assigned the default handler.
@@ -379,8 +420,8 @@ SetExceptionHandlers()
 {
     machine->SetHandler(NO_EXCEPTION,            &DefaultHandler);
     machine->SetHandler(SYSCALL_EXCEPTION,       &SyscallHandler);
-    machine->SetHandler(PAGE_FAULT_EXCEPTION,    &DefaultHandler);
-    machine->SetHandler(READ_ONLY_EXCEPTION,     &DefaultHandler);
+    machine->SetHandler(PAGE_FAULT_EXCEPTION,    &PageFaultHandler);
+    machine->SetHandler(READ_ONLY_EXCEPTION,     &ReadOnlytHandler);
     machine->SetHandler(BUS_ERROR_EXCEPTION,     &DefaultHandler);
     machine->SetHandler(ADDRESS_ERROR_EXCEPTION, &DefaultHandler);
     machine->SetHandler(OVERFLOW_EXCEPTION,      &DefaultHandler);

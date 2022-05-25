@@ -132,6 +132,22 @@ void
 AddressSpace::SaveState()
 {}
 
+void
+AddressSpace::InvalidateTLB()
+{
+    MMU *mmu = machine->GetMMU();
+    for(unsigned i = 0; i < TLB_SIZE; i++)
+    {
+        mmu->tlb[i].valid = false;
+    }
+}
+
+TranslationEntry * 
+AddressSpace::GetTranslationEntry(unsigned vpn)
+{
+    return &pageTable[vpn];
+}
+
 /// On a context switch, restore the machine state so that this address space
 /// can run.
 ///
@@ -139,6 +155,11 @@ AddressSpace::SaveState()
 void
 AddressSpace::RestoreState()
 {
+#ifdef USE_TLB
+    InvalidateTLB();
+    DEBUG('a', "TLB has been invalidated\n");
+#else
     machine->GetMMU()->pageTable     = pageTable;
     machine->GetMMU()->pageTableSize = numPages;
+#endif
 }
