@@ -39,7 +39,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 
     // First, set up the translation.
 
-    
+    char *mainMemory = machine->GetMMU()->mainMemory;
     pageTable = new TranslationEntry[numPages];
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
@@ -51,10 +51,6 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
         pageTable[i].readOnly     = false;
           // If the code segment was entirely on a separate page, we could
           // set its pages to be read-only.
-    }
-    
-    char *mainMemory = machine->GetMMU()->mainMemory;
-    for (unsigned i = 0; i < numPages; i++) {
         memset(mainMemory + (pageTable[i].physicalPage * PAGE_SIZE), 0, PAGE_SIZE);
     }
 
