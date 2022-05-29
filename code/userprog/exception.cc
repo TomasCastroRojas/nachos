@@ -402,6 +402,8 @@ PageFaultHandler (ExceptionType _et)
 
     actualIndex++;
     actualIndex %= TLB_SIZE;
+
+    stats->numPageFaults++;
 }
 
 static void
