@@ -43,7 +43,12 @@ Statistics::Print()
     printf("Disk I/O: reads %lu, writes %lu\n", numDiskReads, numDiskWrites);
     printf("Console I/O: reads %lu, writes %lu\n",
            numConsoleCharsRead, numConsoleCharsWritten);
+#ifdef USE_TLB
+    double hitRatio = (1 - (double)numPageHits / ((double)numPageHits + (double)numPageFaults)) * 100;
+    printf("Paging: faults %lu, hits %lu, hit ratio %% %.2lf\n", numPageFaults, numPageHits, hitRatio);
+#else
     printf("Paging: faults %lu\n", numPageFaults);
+#endif
     printf("Network I/O: packets received %lu, sent %lu\n",
            numPacketsRecvd, numPacketsSent);
 }
