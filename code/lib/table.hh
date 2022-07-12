@@ -46,12 +46,16 @@ public:
     /// Returns the old item.
     T Update(int i, T item);
 
+    unsigned Count();
+
 private:
     /// Data items.
     T data[SIZE];
 
     /// Current greatest index for a new item.
     int current;
+
+    unsigned count;
 
     /// A list to store indexes of items that have been freed and are not
     /// among those with greatest numbers, so it is not possible to modify
@@ -65,6 +69,7 @@ template <class T>
 Table<T>::Table()
 {
     current = 0;
+    count = 0;
 }
 
 
@@ -77,10 +82,12 @@ Table<T>::Add(T item)
     if (!freed.IsEmpty()) {
         i = freed.Pop();
         data[i] = item;
+        count++;
         return i;
     } else if (current < static_cast<int>(SIZE)) {
         i = current++;
         data[i] = item;
+        count++;
         return i;
     } else {
         return -1;
@@ -132,6 +139,7 @@ Table<T>::Remove(int i)
     } else {
         freed.SortedInsert(i, i);
     }
+    count--;
     return data[i];
 }
 
@@ -146,6 +154,13 @@ Table<T>::Update(int i, T item)
     T previous = data[i];
     data[i] = item;
     return previous;
+}
+
+template <class T>
+unsigned
+Table<T>::Count()
+{
+    return count;
 }
 
 
