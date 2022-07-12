@@ -191,6 +191,12 @@ Thread::Finish(int returnValue)
         channel->Send(returnValue);
     
     threadToBeDestroyed = currentThread;
+#ifdef USER_PROGRAM
+    if (runningThreads->Count() == 1)
+    {
+        interrupt->Halt();
+    }
+#endif
     Sleep();  // Invokes `SWITCH`.
     // Not reached.
 }
