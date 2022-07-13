@@ -1,0 +1,29 @@
+Con TLB de tamaño 4:
+Para matmult:
+faults 61218, hits 745636, hit ratio % 91.79
+
+Para sort:
+faults 1321626, hits 22612092, hit ratio % 94.16
+
+
+Con TLB de tamaño 32:
+Para matmult:
+faults 109, hits 709411, hit ratio % 99.98
+
+Para sort:
+faults 3024, hits 22080110, hit ratio % 99.99
+
+
+Con TLB de tamaño 64:
+Para matmult:
+faults 46, hits 709359, hit ratio % 99.99
+
+Para sort:
+faults 39, hits 22077483, hit ratio % 100.00
+
+
+La TLB con 32 entradas mejora mucho la cantidad de fallas respecto a 4 entradas.
+La TLB con 64 entradas mejora poco en relación a 32 entradas.
+Como en cada cambio de contexto se debe recorrer la TLB entera para invalidarla, las tablas con 32 y 64 entradas generan un costo mayor.
+Reconmedaríamos usar un tamaño de 32 entradas que se encuentra en un punto intermedio entre las otras dos opciones, mejorando considerablemente
+el desempeño respecto a la TLB con 4 entradas, y teniendo un costo menor que la TLB con 64 entradas.
