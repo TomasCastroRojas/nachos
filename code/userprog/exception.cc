@@ -382,26 +382,12 @@ PageFaultHandler (ExceptionType _et)
     
     TranslationEntry *entry = currentThread->space->GetTranslationEntry(vpn);
 
-    static int actualIndex = 0;
-    TranslationEntry *tlb = machine->GetMMU()->tlb;
-
-    if (tlb[actualIndex].valid) {
-        unsigned victimVpn = tlb[actualIndex].virtualPage;
-        TranslationEntry *victimEntry = currentThread->space->GetTranslationEntry(victimVpn);
-
-        victimEntry->use = tlb[actualIndex].use;
-        victimEntry->dirty = tlb[actualIndex].dirty;
+    if (!entry->valid)
+    {
+        currentThread->space->LoadPage(vpn);
     }
 
-    tlb[actualIndex].virtualPage = vpn;
-    tlb[actualIndex].physicalPage = entry->physicalPage;
-    tlb[actualIndex].valid = entry->valid;
-    tlb[actualIndex].readOnly = entry->readOnly;
-    tlb[actualIndex].use = entry->use;
-    tlb[actualIndex].dirty = entry->dirty;
-
-    actualIndex++;
-    actualIndex %= TLB_SIZE;
+    currentThread->space->SetTlbPage(entry);
 
     stats->numPageFaults++;
 }
