@@ -48,7 +48,11 @@ public:
     void RestoreState();
 
     void InvalidateTLB();
+    void SavePageFromTLB(unsigned page);
+    bool SetTlbPage(TranslationEntry *pageTranslation);
     TranslationEntry* GetTranslationEntry(unsigned vpn);
+
+    void LoadPage(unsigned vpn);
 
 private:
 
@@ -57,6 +61,14 @@ private:
 
     /// Number of pages in the virtual address space.
     unsigned numPages;
+
+    /// TLB index in this address space
+    unsigned int tlbIndex;
+
+    // Necessary information if demand loading is defined
+    OpenFile* executable;
+    unsigned int codeSize, codeAddr;
+    unsigned int initDataSize, initDataAddr;
 
 };
 
