@@ -16,6 +16,7 @@
 
 #include "filesys/file_system.hh"
 #include "machine/translation_entry.hh"
+#include "lib/bitmap.hh"
 
 
 const unsigned USER_STACK_SIZE = 1024;  ///< Increase this as necessary!
@@ -34,7 +35,7 @@ public:
     /// Parameters:
     /// * `executable_file` is the open file that corresponds to the
     ///   program; it contains the object code to load into memory.
-    AddressSpace(OpenFile *executable_file);
+    AddressSpace(OpenFile *executable_file, int pid);
 
     /// De-allocate an address space.
     ~AddressSpace();
@@ -52,7 +53,12 @@ public:
     bool SetTlbPage(TranslationEntry *pageTranslation);
     TranslationEntry* GetTranslationEntry(unsigned vpn);
 
+    // Demand Loading
     void LoadPage(unsigned vpn);
+
+    // Swap
+    void ReadFromSwap(unsigned vpn);
+    void WriteToSwap(unsigned vpn);
 
 private:
 
@@ -65,10 +71,15 @@ private:
     /// TLB index in this address space
     unsigned int tlbIndex;
 
-    // Necessary information if demand loading is defined
+    // Demand Loading
     OpenFile* executable;
     unsigned int codeSize, codeAddr;
     unsigned int initDataSize, initDataAddr;
+
+    // Swap
+    char* swapName;
+    OpenFile* swapFile;
+    Bitmap* inSwap;
 
 };
 

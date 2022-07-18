@@ -10,6 +10,10 @@
 #include "executable.hh"
 #include "threads/system.hh"
 
+#ifdef SWAP
+#include "filesys/directory_entry.hh"
+#endif
+
 #include <string.h>
 #include <stdio.h>
 
@@ -17,7 +21,7 @@
 /// First, set up the translation from program memory to physical memory.
 /// For now, this is really simple (1:1), since we are only uniprogramming,
 /// and we have a single unsegmented page table.
-AddressSpace::AddressSpace(OpenFile *executable_file)
+AddressSpace::AddressSpace(OpenFile *executable_file, int pid)
 {
     ASSERT(executable_file != nullptr);
 
@@ -39,9 +43,19 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     size = numPages * PAGE_SIZE;
     tlbIndex = 0;
 
-    ASSERT(numPages <= usedPages->CountClear());
+#ifdef SWAP
+    swapName = new char[FILE_NAME_MAX_LEN];
+    snprintf(swapName, FILE_NAME_MAX_LEN, "SWAP.%u", pid);
+    ASSERT(fileSystem->Create(swapName, size));
+    ASSERT(swapFile = fileSystem->Open(swapName));
+    inSwap = new Bitmap(numPages);
+#endif
+#ifndef SWAP
     // Check we are not trying to run anything too big -- at least until we
     // have virtual memory.
+    ASSERT(numPages <= usedPages->CountClear());
+#endif
+    
 
     DEBUG('a', "Initializing address space, num pages %u, size %u\n",
           numPages, size);
@@ -55,7 +69,11 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
         #ifndef DEMAND_LOADING
+        #ifndef SWAP
         pageTable[i].physicalPage = usedPages->Find();
+        #else
+        pageTable[i].physicalPage = coreMap->Find(this, i);
+        #endif
         pageTable[i].valid        = true;
         #else
         pageTable[i].physicalPage = -1;
@@ -115,11 +133,20 @@ AddressSpace::~AddressSpace()
     {
         if(pageTable[i].valid) 
         {
-            usedPages->Clear(pageTable[i].physicalPage);
+            #ifdef SWAP
+                coreMap->Clear(i);
+            #else
+                usedPages->Clear(i);
+            #endif
         }
     }
 #ifdef DEMAND_LOADING
     delete executable;
+#endif
+#ifdef SWAP
+    fileSystem->Remove(swapName);
+    delete inSwap;
+    delete [] swapName;
 #endif
     delete [] pageTable;
 
@@ -164,6 +191,22 @@ AddressSpace::SaveState()
     {
         SavePageFromTLB(page);
     }
+}
+
+/// On a context switch, restore the machine state so that this address space
+/// can run.
+///
+/// For now, tell the machine where to find the page table.
+void
+AddressSpace::RestoreState()
+{
+#ifdef USE_TLB
+    InvalidateTLB();
+    DEBUG('a', "TLB has been invalidated\n");
+#else
+    machine->GetMMU()->pageTable     = pageTable;
+    machine->GetMMU()->pageTableSize = numPages;
+#endif
 }
 
 void
@@ -212,35 +255,41 @@ AddressSpace::SetTlbPage(TranslationEntry *pageTranslation)
 #endif
 }
 
-TranslationEntry * 
+TranslationEntry* 
 AddressSpace::GetTranslationEntry(unsigned vpn)
 {
-    return &pageTable[vpn];
+    TranslationEntry *page = &pageTable[vpn];
+    if(!page->valid)
+    {
+#ifdef SWAP
+        if(inSwap->Test(vpn))
+        {
+            ReadFromSwap(vpn);
+        }
+        else
+        {
+            LoadPage(vpn);
+        }
+#else
+        LoadPage(vpn);
+#endif
+    }
+    return page;
 }
 
-/// On a context switch, restore the machine state so that this address space
-/// can run.
-///
-/// For now, tell the machine where to find the page table.
-void
-AddressSpace::RestoreState()
-{
-#ifdef USE_TLB
-    InvalidateTLB();
-    DEBUG('a', "TLB has been invalidated\n");
-#else
-    machine->GetMMU()->pageTable     = pageTable;
-    machine->GetMMU()->pageTableSize = numPages;
-#endif
-}
+
 
 void
 AddressSpace::LoadPage(unsigned vpn)
 {
     DEBUG('p', "Loading page %u\n", vpn);
 
+#ifdef SWAP
+    int frame = coreMap->Find(vpn, this);
+#else
     int frame = usedPages->Find();
     ASSERT(frame != -1);
+#endif
 
     DEBUG('p', "Physical page found\n");
     unsigned virtualAddr = vpn * PAGE_SIZE;
@@ -289,4 +338,48 @@ AddressSpace::LoadPage(unsigned vpn)
             ASSERT(false);
         }
     }
+}
+
+void
+AddressSpace::ReadFromSwap(unsigned vpn) 
+{
+    char *mainMemory = machine->GetMMU()->mainMemory;
+    unsigned physicalPage = coreMap->Find(vpn, this);
+    DEBUG('p', "Cargando vpn %lu en la ppn %lu desde la swap\n", vpn, physicalPage);
+
+    pageTable[vpn].valid = true;
+    pageTable[vpn].dirty = false;
+    pageTable[vpn].use = false;
+    pageTable[vpn].physicalPage = physicalPage;
+
+    int physicalAddr = physicalPage * PAGE_SIZE;
+    swapFile->ReadAt(mainMemory + physicalAddr, PAGE_SIZE, vpn * PAGE_SIZE);
+}
+
+void
+AddressSpace::WriteToSwap(unsigned vpn)
+{
+    char *mainMemory = machine->GetMMU()->mainMemory;
+    int physicalAddr = pageTable[vpn].physicalPage * PAGE_SIZE;
+    pageTable[vpn].physicalPage = -1;
+    pageTable[vpn].valid = false;
+
+    if (pageTable[vpn].dirty) 
+    {
+        DEBUG('p', "Desalojando ppn %lu con vpn %lu DIRTY\n", pageTable[vpn].physicalPage, vpn);
+        ASSERT(swapFile->WriteAt(mainMemory + physicalAddr, PAGE_SIZE, vpn * PAGE_SIZE) == PAGE_SIZE);
+        inSwap->Mark(vpn);
+    } else {
+        DEBUG('p', "Desalojando ppn %lu con vpn %lu CLEAN\n", pageTable[vpn].physicalPage, vpn);
+    }
+
+    TranslationEntry *tlb = machine->GetMMU()->tlb;
+    for (unsigned int i = 0; i < TLB_SIZE; i++)
+    {
+        if (tlb[i].valid && tlb[i].virtualPage == vpn)
+        {
+        tlb[i].valid = false;
+        }
+    }
+    
 }
