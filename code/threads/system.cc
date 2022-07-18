@@ -45,7 +45,11 @@ SynchDisk *synchDisk;
 #ifdef USER_PROGRAM  // Requires either *FILESYS* or *FILESYS_STUB*.
 Machine *machine;  ///< User program memory and registers.
 SynchConsole *synchConsole;
+#ifdef SWAP
+Coremap *coreMap;
+#else
 Bitmap *usedPages;
+#endif
 Table<Thread*> *runningThreads; 
 #endif
 
@@ -234,7 +238,11 @@ Initialize(int argc, char **argv)
     Debugger *d = debugUserProg ? new Debugger : nullptr;
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole("Synch Console");
-    usedPages = new Bitmap(NUM_PHYS_PAGES);
+    #ifdef SWAP
+        coreMap = new Coremap(NUM_PHYS_PAGES);
+    #else
+        usedPages = new Bitmap(NUM_PHYS_PAGES);
+    #endif
     if(!randomYield)
         timer = new Timer(TimerInterruptHandler, 0, false);
     SetExceptionHandlers();
@@ -269,7 +277,11 @@ Cleanup()
 #ifdef USER_PROGRAM
     delete machine;
     delete synchConsole;
-    delete usedPages;
+    #ifdef SWAP
+        delete coreMap;
+    #else
+        delete usedPages;
+    #endif
     delete runningThreads;
 #endif
 
