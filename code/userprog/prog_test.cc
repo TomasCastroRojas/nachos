@@ -31,7 +31,7 @@ StartProcess(const char *filename)
         return;
     }
 
-    AddressSpace *space = new AddressSpace(executable);
+    AddressSpace *space = new AddressSpace(executable, currentThread->spaceId);
     currentThread->space = space;
 
 #ifndef DEMAND_LOADING
