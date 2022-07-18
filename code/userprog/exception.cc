@@ -344,7 +344,7 @@ SyscallHandler(ExceptionType _et)
             }
 
             Thread* child = new Thread(filename, joinable, currentThread->GetPriority());
-            child->space = new AddressSpace(execFile);
+            child->space = new AddressSpace(execFile, currentThread->spaceId);
 
             char **argv = nullptr;
             if (!argvAddr) {
@@ -382,11 +382,6 @@ PageFaultHandler (ExceptionType _et)
     
     TranslationEntry *entry = currentThread->space->GetTranslationEntry(vpn);
 
-    if (!entry->valid)
-    {
-        currentThread->space->LoadPage(vpn);
-    }
-
     currentThread->space->SetTlbPage(entry);
 
     stats->numPageFaults++;
@@ -398,7 +393,7 @@ ReadOnlytHandler (ExceptionType _et)
     unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
     unsigned int numPage = badVAddr / PAGE_SIZE;
     fprintf(stderr, "'Page 'ReadOnly' exception'. Virtual address: %d -- Page: %d\n", badVAddr, numPage);
-    ASSERT(false);
+    currentThread->Finish(_et);
 }
 
 /// By default, only system calls have their own handler.  All other
