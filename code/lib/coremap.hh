@@ -30,8 +30,11 @@ private:
 
     AddressSpace **spaces;
 
+    unsigned mapSize;
+
     List <unsigned> *pagesQueue;
 
     unsigned PickVictim();
+
 };
 #endif
