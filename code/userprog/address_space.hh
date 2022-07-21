@@ -16,6 +16,7 @@
 
 #include "filesys/file_system.hh"
 #include "machine/translation_entry.hh"
+#include "executable.hh"
 #include "lib/bitmap.hh"
 
 

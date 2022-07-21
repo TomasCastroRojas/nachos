@@ -7,7 +7,6 @@
 
 
 #include "address_space.hh"
-#include "executable.hh"
 #include "threads/system.hh"
 
 #ifdef SWAP
@@ -48,9 +47,9 @@ AddressSpace::AddressSpace(OpenFile *executable_file, int pid)
     snprintf(swapName, FILE_NAME_MAX_LEN, "SWAP.%u", pid);
     ASSERT(fileSystem->Create(swapName, size));
     ASSERT(swapFile = fileSystem->Open(swapName));
+    DEBUG('p', "Archivo swap creado nombre %s\n", swapName);
     inSwap = new Bitmap(numPages);
-#endif
-#ifndef SWAP
+#else
     // Check we are not trying to run anything too big -- at least until we
     // have virtual memory.
     ASSERT(numPages <= usedPages->CountClear());
@@ -69,15 +68,15 @@ AddressSpace::AddressSpace(OpenFile *executable_file, int pid)
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
         #ifndef DEMAND_LOADING
-        #ifndef SWAP
-        pageTable[i].physicalPage = usedPages->Find();
+            #ifndef SWAP
+                pageTable[i].physicalPage = usedPages->Find();
+            #else
+                pageTable[i].physicalPage = coreMap->Find(i, this);
+            #endif
+            pageTable[i].valid        = true;
         #else
-        pageTable[i].physicalPage = coreMap->Find(this, i);
-        #endif
-        pageTable[i].valid        = true;
-        #else
-        pageTable[i].physicalPage = -1;
-        pageTable[i].valid        = false;
+            pageTable[i].physicalPage = -1;
+            pageTable[i].valid        = false;
         #endif
         pageTable[i].use          = false;
         pageTable[i].dirty        = false;
@@ -134,9 +133,9 @@ AddressSpace::~AddressSpace()
         if(pageTable[i].valid) 
         {
             #ifdef SWAP
-                coreMap->Clear(i);
+                coreMap->Clear(pageTable[i].physicalPage);
             #else
-                usedPages->Clear(i);
+                usedPages->Clear(pageTable[i].physicalPage);
             #endif
         }
     }
@@ -144,9 +143,9 @@ AddressSpace::~AddressSpace()
     delete executable;
 #endif
 #ifdef SWAP
+    delete swapFile;
     fileSystem->Remove(swapName);
     delete inSwap;
-    delete [] swapName;
 #endif
     delete [] pageTable;
 
@@ -187,6 +186,7 @@ AddressSpace::InitRegisters()
 void
 AddressSpace::SaveState()
 {
+    //DEBUG('p', "Saving TLB pages on context switch\n");
     for(unsigned page = 0; page < TLB_SIZE; page++)
     {
         SavePageFromTLB(page);
@@ -202,7 +202,7 @@ AddressSpace::RestoreState()
 {
 #ifdef USE_TLB
     InvalidateTLB();
-    DEBUG('a', "TLB has been invalidated\n");
+    //DEBUG('p', "TLB has been invalidated\n");
 #else
     machine->GetMMU()->pageTable     = pageTable;
     machine->GetMMU()->pageTableSize = numPages;
@@ -212,16 +212,17 @@ AddressSpace::RestoreState()
 void
 AddressSpace::InvalidateTLB()
 {
-    MMU *mmu = machine->GetMMU();
+    TranslationEntry *tlb = machine->GetMMU()->tlb;
     for(unsigned i = 0; i < TLB_SIZE; i++)
     {
-        mmu->tlb[i].valid = false;
+        tlb[i].valid = false;
     }
 }
 
 void
 AddressSpace::SavePageFromTLB(unsigned page)
 {
+    DEBUG('p', "Saving tlb page in index %u\n", page);
     TranslationEntry *tlb = machine->GetMMU()->tlb;
     if (tlb[page].valid)
     {
@@ -302,44 +303,49 @@ AddressSpace::LoadPage(unsigned vpn)
 
     uint32_t physicalAddr = frame * PAGE_SIZE;
 
-    char *mainMemory = machine->GetMMU()->mainMemory;
 
-    unsigned leftToRead = PAGE_SIZE;
-    unsigned sizeToRead;
-
-    if (virtualAddr >= codeSize + initDataSize) {
-        sizeToRead = PAGE_SIZE;
-        memset(mainMemory + physicalAddr, 0, sizeToRead);
-        pageTable[vpn].readOnly = false;
-    } else if (virtualAddr >= codeSize) {
-        sizeToRead = PAGE_SIZE < codeSize + initDataSize - virtualAddr ? 
-                     PAGE_SIZE : codeSize + initDataSize - virtualAddr;
-        exe.ReadDataBlock(mainMemory + physicalAddr, sizeToRead, virtualAddr - codeSize);
-        pageTable[vpn].readOnly = false;
-    } else {
-        sizeToRead = PAGE_SIZE < codeAddr + codeSize - virtualAddr ?
-                     PAGE_SIZE : codeAddr + codeSize - virtualAddr;
-        exe.ReadCodeBlock(mainMemory + physicalAddr, sizeToRead, virtualAddr - codeAddr);
-        pageTable[vpn].readOnly = true;
-    }
-
-    leftToRead -= sizeToRead;
-
-    if (leftToRead > 0) {
-        virtualAddr += sizeToRead;
-        physicalAddr += sizeToRead;
-        pageTable[vpn].readOnly = false;
-        if (virtualAddr >= codeSize + initDataSize) {
-            sizeToRead = PAGE_SIZE;
-            memset(mainMemory + physicalAddr, 0, sizeToRead);
-        } else if (virtualAddr >= codeSize) {
-            exe.ReadDataBlock(mainMemory + physicalAddr, leftToRead, virtualAddr - codeSize);
-        } else {
-            ASSERT(false);
+    unsigned int pageEnd = virtualAddr + PAGE_SIZE;
+    unsigned int codeEnd = codeAddr + codeSize;
+    unsigned int dataEnd = initDataAddr + initDataSize;
+    unsigned int uninitStart = codeSize + initDataSize;
+    char *mainMemory = &(machine->GetMMU()->mainMemory[physicalAddr]);
+    unsigned bytesRead = 0;
+    if (pageEnd >= codeAddr && virtualAddr <= codeEnd)
+    {
+        unsigned int overlapStart = virtualAddr >= codeAddr ? virtualAddr : codeAddr;
+        unsigned int overlapEnd = pageEnd < codeEnd ? pageEnd : codeEnd;
+        if (overlapEnd - overlapStart)
+        {
+            exe.ReadCodeBlock(mainMemory, overlapEnd - overlapStart, overlapStart - codeAddr);
+            mainMemory += overlapEnd - overlapStart;
+            bytesRead += overlapEnd - overlapStart;
+            pageTable[vpn].readOnly = true;
         }
+    }
+    if (pageEnd >= initDataAddr && virtualAddr <= dataEnd)
+    {
+        unsigned int overlapStart = virtualAddr >= initDataAddr ? virtualAddr : initDataAddr;
+        unsigned int overlapEnd = pageEnd < dataEnd ? pageEnd : dataEnd;
+        if (overlapEnd - overlapStart)
+        {
+            exe.ReadDataBlock(mainMemory, overlapEnd - overlapStart, overlapStart - initDataAddr);
+            mainMemory += overlapEnd - overlapStart;
+            bytesRead += overlapEnd - overlapStart;
+            pageTable[vpn].readOnly = false;
+        }
+    }
+    if (pageEnd > uninitStart)
+    {
+        unsigned int overlapStart = virtualAddr >= uninitStart ? virtualAddr : uninitStart;
+        unsigned int size = pageEnd - overlapStart;
+        size = size > PAGE_SIZE ? PAGE_SIZE : size;
+        memset(mainMemory, 0, size);
+        bytesRead += size;
+        pageTable[vpn].readOnly = false;
     }
 }
 
+#ifdef SWAP
 void
 AddressSpace::ReadFromSwap(unsigned vpn) 
 {
@@ -352,25 +358,25 @@ AddressSpace::ReadFromSwap(unsigned vpn)
     pageTable[vpn].use = false;
     pageTable[vpn].physicalPage = physicalPage;
 
-    int physicalAddr = physicalPage * PAGE_SIZE;
+    unsigned physicalAddr = physicalPage * PAGE_SIZE;
     swapFile->ReadAt(mainMemory + physicalAddr, PAGE_SIZE, vpn * PAGE_SIZE);
+    inSwap->Clear(vpn);
 }
 
 void
 AddressSpace::WriteToSwap(unsigned vpn)
 {
     char *mainMemory = machine->GetMMU()->mainMemory;
-    int physicalAddr = pageTable[vpn].physicalPage * PAGE_SIZE;
-    pageTable[vpn].physicalPage = -1;
+    unsigned physicalAddr = pageTable[vpn].physicalPage * PAGE_SIZE;
     pageTable[vpn].valid = false;
 
     if (pageTable[vpn].dirty) 
     {
-        DEBUG('p', "Desalojando ppn %lu con vpn %lu DIRTY\n", pageTable[vpn].physicalPage, vpn);
+        DEBUG('p', "Desalojando physical page number %lu con vpn %lu DIRTY\n", pageTable[vpn].physicalPage, vpn);
         ASSERT(swapFile->WriteAt(mainMemory + physicalAddr, PAGE_SIZE, vpn * PAGE_SIZE) == PAGE_SIZE);
         inSwap->Mark(vpn);
     } else {
-        DEBUG('p', "Desalojando ppn %lu con vpn %lu CLEAN\n", pageTable[vpn].physicalPage, vpn);
+        DEBUG('p', "Desalojando physical page number %lu con vpn %lu CLEAN\n", pageTable[vpn].physicalPage, vpn);
     }
 
     TranslationEntry *tlb = machine->GetMMU()->tlb;
@@ -378,8 +384,10 @@ AddressSpace::WriteToSwap(unsigned vpn)
     {
         if (tlb[i].valid && tlb[i].virtualPage == vpn)
         {
-        tlb[i].valid = false;
+            tlb[i].valid = false;
+            break;
         }
     }
-    
+
 }
+#endif
