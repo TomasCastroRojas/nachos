@@ -1,15 +1,15 @@
 #include "syscall.h"
 
-unsigned strlargo (const char *string) {
+unsigned strlargo (const char *str) {
   unsigned len = 0;
   
-  for(; string[len] != '\0'; ++len);
+  for(; str[len] != '\0'; ++len);
   
   return len;
 }
 
-void putS (const char *string ) {
-  Write(string, strlargo(string), CONSOLE_OUTPUT);
+void putS (const char *str ) {
+  Write(str, strlargo(str), CONSOLE_OUTPUT);
 }
 
  
