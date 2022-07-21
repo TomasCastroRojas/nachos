@@ -338,7 +338,7 @@ SyscallHandler(ExceptionType _et)
 
             OpenFile *execFile = fileSystem->Open(filename);
             if (!execFile) {
-                DEBUG('e', "'ExecÂ' Error: File %s not found.\n", filename);
+                DEBUG('e', "'Exec' Error: File %s not found.\n", filename);
                 machine->WriteRegister(2, -1);
                 break;
             }
@@ -347,7 +347,7 @@ SyscallHandler(ExceptionType _et)
             child->space = new AddressSpace(execFile, currentThread->spaceId);
 
             char **argv = nullptr;
-            if (!argvAddr) {
+            if (argvAddr) {
                 argv = SaveArgs(argvAddr);
             }
             child->Fork(InitProcess, argv);
