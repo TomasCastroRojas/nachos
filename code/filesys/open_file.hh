@@ -22,6 +22,7 @@
 
 #include "lib/utility.hh"
 
+class ReadWriteController;
 
 #ifdef FILESYS_STUB  // Temporarily implement calls to Nachos file system as
                      // calls to UNIX!  See definitions listed under `#else`.
@@ -85,13 +86,14 @@ private:
 };
 
 #else // FILESYS
+
 class FileHeader;
 
 class OpenFile {
 public:
 
     /// Open a file whose header is located at `sector` on the disk.
-    OpenFile(int sector);
+    OpenFile(int sector, ReadWriteController* rw = nullptr);
 
     /// Close the file.
     ~OpenFile();
@@ -115,6 +117,7 @@ public:
     unsigned Length() const;
 
   private:
+    ReadWriteController *accessController;
     FileHeader *hdr;  ///< Header for this file.
     unsigned seekPosition;  ///< Current position within the file.
 };

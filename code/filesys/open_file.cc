@@ -14,6 +14,7 @@
 #include "open_file.hh"
 #include "file_header.hh"
 #include "threads/system.hh"
+#include "read_write_controller.hh"
 
 #include <string.h>
 
@@ -22,10 +23,11 @@
 /// memory while the file is open.
 ///
 /// * `sector` is the location on disk of the file header for this file.
-OpenFile::OpenFile(int sector)
+OpenFile::OpenFile(int sector, ReadWriteController* rw)
 {
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
+    accessController = rw;
     seekPosition = 0;
 }
 
@@ -110,11 +112,17 @@ OpenFile::ReadAt(char *into, unsigned numBytes, unsigned position)
     ASSERT(into != nullptr);
     ASSERT(numBytes > 0);
 
+    if(accessController != nullptr) {
+        DEBUG('f', "Acquiring reader access controller lock\n");
+        accessController -> AcquireRead();
+    }
     unsigned fileLength = hdr->FileLength();
     unsigned firstSector, lastSector, numSectors;
     char *buf;
 
     if (position >= fileLength) {
+        if(accessController != nullptr)
+            accessController -> ReleaseRead();
         return 0;  // Check request.
     }
     if (position + numBytes > fileLength) {
@@ -136,6 +144,11 @@ OpenFile::ReadAt(char *into, unsigned numBytes, unsigned position)
 
     // Copy the part we want.
     memcpy(into, &buf[position - firstSector * SECTOR_SIZE], numBytes);
+
+    if (accessController != nullptr) {
+        DEBUG('f', "Releasing reader access controller lock\n");
+        accessController->ReleaseRead();
+    }
     delete [] buf;
     return numBytes;
 }
@@ -146,12 +159,20 @@ OpenFile::WriteAt(const char *from, unsigned numBytes, unsigned position)
     ASSERT(from != nullptr);
     ASSERT(numBytes > 0);
 
+    if (accessController != nullptr) {
+        DEBUG('f', "Acquiring writer access controller lock\n");
+        accessController->AcquireWrite();
+    }
+
     unsigned fileLength = hdr->FileLength();
     unsigned firstSector, lastSector, numSectors;
     bool firstAligned, lastAligned;
     char *buf;
 
     if (position >= fileLength) {
+        if (accessController != nullptr) {
+            accessController->AcquireWrite();
+        }
         return 0;  // Check request.
     }
     if (position + numBytes > fileLength) {
@@ -186,6 +207,12 @@ OpenFile::WriteAt(const char *from, unsigned numBytes, unsigned position)
         synchDisk->WriteSector(hdr->ByteToSector(i * SECTOR_SIZE),
                                &buf[(i - firstSector) * SECTOR_SIZE]);
     }
+
+    if (accessController != nullptr) {
+        DEBUG('f', "Realising writer access controller lock\n");
+        accessController->ReleaseWrite();
+    }
+    
     delete [] buf;
     return numBytes;
 }
