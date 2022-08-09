@@ -94,7 +94,9 @@ public:
 
 #include "directory_entry.hh"
 #include "machine/disk.hh"
+#include "open_file_list.hh"
 
+class Lock;
 
 /// Initial file sizes for the bitmap and directory; until the file system
 /// supports extensible files, the directory size sets the maximum number of
@@ -133,13 +135,20 @@ public:
     bool Check();
 
     /// List all the files and their contents.
-    void Print();
+    void Print(); 
 
 private:
     OpenFile *freeMapFile;  ///< Bit map of free disk blocks, represented as a
                             ///< file.
     OpenFile *directoryFile;  ///< “Root” directory -- list of file names,
                               ///< represented as a file.
+
+    OpenFileList* openFiles;
+    
+    /// Removes the given file from the disk.
+    /// This is called after checking the given file is not open
+    /// and assumes the lock from the OpenFileList is previously acquired.
+    bool DeleteFromDisk(int sector);
 };
 
 #endif

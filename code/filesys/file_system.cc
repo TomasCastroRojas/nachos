@@ -47,6 +47,10 @@
 #include "file_header.hh"
 #include "lib/bitmap.hh"
 
+#include "threads/lock.hh"
+#include "read_write_controller.hh"
+#include "threads/system.hh"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -69,6 +73,9 @@ static const unsigned DIRECTORY_SECTOR = 1;
 FileSystem::FileSystem(bool format)
 {
     DEBUG('f', "Initializing the file system.\n");
+
+    openFiles = new OpenFileList();
+
     if (format) {
         Bitmap     *freeMap = new Bitmap(NUM_SECTORS);
         Directory  *dir     = new Directory(NUM_DIR_ENTRIES);
@@ -136,6 +143,7 @@ FileSystem::~FileSystem()
 {
     delete freeMapFile;
     delete directoryFile;
+    delete openFiles;
 }
 
 /// Create a file in the Nachos file system (similar to UNIX `create`).
@@ -224,7 +232,9 @@ FileSystem::Open(const char *name)
     dir->FetchFrom(directoryFile);
     int sector = dir->Find(name);
     if (sector >= 0) {
-        openFile = new OpenFile(sector);  // `name` was found in directory.
+        ReadWriteController *newRw = openFiles->AddOpenFile(sector);
+        if (newRw != nullptr)
+            openFile = new OpenFile(sector, newRw);  // `name` was found in directory.
     }
     delete dir;
     return openFile;  // Return null if not found.
@@ -246,7 +256,6 @@ bool
 FileSystem::Remove(const char *name)
 {
     ASSERT(name != nullptr);
-
     Directory *dir = new Directory(NUM_DIR_ENTRIES);
     dir->FetchFrom(directoryFile);
     int sector = dir->Find(name);
@@ -254,6 +263,25 @@ FileSystem::Remove(const char *name)
        delete dir;
        return false;  // file not found
     }
+    dir->WriteBack(directoryFile);    // Flush to disk.
+    delete dir;
+    bool result = false;
+    openFiles -> AcquireListLock();
+
+    // If the file is open, we set its pendingRemove flag.
+    // If not, we search for it in the file system and remove it.
+    if(not openFiles -> SetUpRemoval(sector)) {
+        openFiles->CloseOpenFile(sector);
+        // Stop other processes from opening the file that will be deleted.
+        result = DeleteFromDisk(sector);
+    }
+    openFiles -> ReleaseListLock();
+    return result;
+}
+
+bool
+FileSystem::DeleteFromDisk(int sector) 
+{
     FileHeader *fileH = new FileHeader;
     fileH->FetchFrom(sector);
 
@@ -262,12 +290,9 @@ FileSystem::Remove(const char *name)
 
     fileH->Deallocate(freeMap);  // Remove data blocks.
     freeMap->Clear(sector);      // Remove header block.
-    dir->Remove(name);
 
     freeMap->WriteBack(freeMapFile);  // Flush to disk.
-    dir->WriteBack(directoryFile);    // Flush to disk.
     delete fileH;
-    delete dir;
     delete freeMap;
     return true;
 }
