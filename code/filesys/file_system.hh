@@ -95,6 +95,7 @@ public:
 #include "directory_entry.hh"
 #include "machine/disk.hh"
 #include "open_file_list.hh"
+#include "lib/bitmap.hh"
 
 class Lock;
 
@@ -135,7 +136,19 @@ public:
     bool Check();
 
     /// List all the files and their contents.
-    void Print(); 
+    void Print();
+
+    // Returns the bitmap of free sectors on the disk granting reading and
+    /// writing exclusivity.
+    Bitmap* AcquireFreeMap();
+
+    /// Returns the current value of the freeMap pointer. No exclusive access
+    /// is guaranteed.
+    Bitmap* GetCurrentFreeMap();
+
+    /// Marks the end of the freeMap usage. The lock is released, the
+    /// memory is freed and the changes are saved to disk.
+    void ReleaseFreeMap(Bitmap *freeMap);
 
 private:
     OpenFile *freeMapFile;  ///< Bit map of free disk blocks, represented as a
@@ -149,6 +162,8 @@ private:
     /// This is called after checking the given file is not open
     /// and assumes the lock from the OpenFileList is previously acquired.
     bool DeleteFromDisk(int sector);
+
+    Lock *freeMapLock;
 };
 
 #endif

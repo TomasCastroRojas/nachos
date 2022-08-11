@@ -75,6 +75,7 @@ FileSystem::FileSystem(bool format)
     DEBUG('f', "Initializing the file system.\n");
 
     openFiles = new OpenFileList();
+    freeMapLock = new Lock ("File system free map lock");
 
     if (format) {
         Bitmap     *freeMap = new Bitmap(NUM_SECTORS);
@@ -144,6 +145,7 @@ FileSystem::~FileSystem()
     delete freeMapFile;
     delete directoryFile;
     delete openFiles;
+    delete freeMapLock;
 }
 
 /// Create a file in the Nachos file system (similar to UNIX `create`).
@@ -188,6 +190,7 @@ FileSystem::Create(const char *name, unsigned initialSize)
         success = false;  // File is already in directory.
     } else {
         Bitmap *freeMap = new Bitmap(NUM_SECTORS);
+        freeMapLock->Acquire();
         freeMap->FetchFrom(freeMapFile);
         int sector = freeMap->Find();
           // Find a sector to hold the file header.
@@ -207,6 +210,7 @@ FileSystem::Create(const char *name, unsigned initialSize)
             }
             delete h;
         }
+        freeMapLock->Release();
         delete freeMap;
     }
     delete dir;
@@ -283,6 +287,7 @@ bool
 FileSystem::DeleteFromDisk(int sector) 
 {
     FileHeader *fileH = new FileHeader;
+    freeMapLock->Acquire();
     fileH->FetchFrom(sector);
 
     Bitmap *freeMap = new Bitmap(NUM_SECTORS);
@@ -292,6 +297,7 @@ FileSystem::DeleteFromDisk(int sector)
     freeMap->Clear(sector);      // Remove header block.
 
     freeMap->WriteBack(freeMapFile);  // Flush to disk.
+    freeMapLock->Release();
     delete fileH;
     delete freeMap;
     return true;
@@ -518,4 +524,35 @@ FileSystem::Print()
     delete dirH;
     delete freeMap;
     delete dir;
+}
+
+Bitmap *
+FileSystem::AcquireFreeMap()
+{
+    freeMapLock->Acquire();
+
+    Bitmap *freeMap = new Bitmap(NUM_SECTORS);
+    freeMap->FetchFrom(freeMapFile);
+
+    return freeMap;
+}
+
+Bitmap*
+FileSystem::GetCurrentFreeMap()
+{
+    Bitmap *freeMap = new Bitmap(NUM_SECTORS);
+    freeMap->FetchFrom(freeMapFile);
+
+    return freeMap;
+}
+
+/// Marks the end of the freeMap usage. The lock is released, the
+/// memory is freed and the changes are saved to disk.
+void
+FileSystem::ReleaseFreeMap(Bitmap *freeMap_)
+{
+    freeMap_->WriteBack(freeMapFile);
+    delete freeMap_;
+
+    freeMapLock -> Release();
 }
