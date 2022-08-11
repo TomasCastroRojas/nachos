@@ -120,6 +120,7 @@ public:
     ReadWriteController *accessController;
     FileHeader *hdr;  ///< Header for this file.
     unsigned seekPosition;  ///< Current position within the file.
+    int diskSector; // < Sector of the disk where the file is
 };
 
 #endif

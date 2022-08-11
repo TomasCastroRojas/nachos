@@ -29,6 +29,7 @@ OpenFile::OpenFile(int sector, ReadWriteController* rw)
     hdr->FetchFrom(sector);
     accessController = rw;
     seekPosition = 0;
+    diskSector = sector;
 }
 
 /// Close a Nachos file, de-allocating any in-memory data structures.
@@ -169,14 +170,41 @@ OpenFile::WriteAt(const char *from, unsigned numBytes, unsigned position)
     bool firstAligned, lastAligned;
     char *buf;
 
-    if (position >= fileLength) {
+    if (position > fileLength) {
         if (accessController != nullptr) {
-            accessController->AcquireWrite();
+            accessController->ReleaseWrite();
         }
         return 0;  // Check request.
     }
     if (position + numBytes > fileLength) {
-        numBytes = fileLength - position;
+        unsigned extendSize = position + numBytes - fileLength;
+
+        // Fetch the bitmap containing the free disk sectors.
+        Bitmap *freeMap;
+
+        // If the file is special, exclusive access is already guaranteed.
+        if(accessController == nullptr)
+            freeMap = fileSystem -> GetCurrentFreeMap();
+        else
+            freeMap = fileSystem -> AcquireFreeMap();
+
+        if (not hdr -> Extend(freeMap, extendSize)){
+            if(accessController != nullptr){
+                accessController -> ReleaseWrite();
+                fileSystem -> ReleaseFreeMap(freeMap);
+            }
+            return 0;
+        }
+
+        fileLength = hdr -> FileLength();
+
+        // Write back the changes to disk.
+        hdr -> WriteBack(diskSector);
+
+        // If exclusive freeMap access was requested in this function,
+        // it is revoked here.
+        if(accessController != nullptr)
+            fileSystem -> ReleaseFreeMap(freeMap);
     }
     DEBUG('f', "Writing %u bytes at %u, from file of length %u.\n",
           numBytes, position, fileLength);
