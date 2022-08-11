@@ -48,7 +48,6 @@ FileHeader::Allocate(Bitmap *freeMap, unsigned fileSize)
     raw.numBytes = fileSize;
 
     unsigned dataSectorCount = DataSectorCount();
-    sectorCount = dataSectorCount;
     unsigned indirectionSectorCount = 0;
     if (UsesDoubleIndirection())
         indirectionSectorCount = DivRoundUp(dataSectorCount, NUM_DIRECT);
@@ -213,8 +212,8 @@ FileHeader::Print(const char *title)
     delete [] data;
 }
 
-const RawFileHeader *
-FileHeader::GetRaw() const
+RawFileHeader *
+FileHeader::GetRaw()
 {
     return &raw;
 }
@@ -227,7 +226,8 @@ FileHeader::UsesDoubleIndirection() const
 
 unsigned
 FileHeader::DataSectorCount() const{
-    return DivRoundUp(raw.numBytes, SECTOR_SIZE);
+    unsigned const sectors = DivRoundUp(raw.numBytes, SECTOR_SIZE);
+    return sectors;
 }
 
 unsigned
@@ -235,4 +235,95 @@ FileHeader::IndirectionSectorCount() const{
     if(not UsesDoubleIndirection())
         return 0;
     return DivRoundUp(sectorCount, NUM_DIRECT);
+}
+
+bool
+FileHeader::Extend(Bitmap* freeMap, unsigned extendSize)
+{
+    if(extendSize == 0)
+        return true; // Nothing to be done.
+
+    unsigned oldNumBytes = raw.numBytes;
+    unsigned oldNumSectors = raw.numSectors;
+    bool oldDoubleIndirection = UsesDoubleIndirection();
+
+    raw.numBytes += extendSize;
+    unsigned dataSectorCount = DataSectorCount();
+    unsigned indirectionSectorCount = IndirectionSectorCount();
+    raw.numSectors = dataSectorCount + indirectionSectorCount;
+
+    // Check that the final size is small enough to:
+    //  - fit into a header with two indirection levels
+    //  - fit into disk
+    if (freeMap->CountClear() < raw.numSectors - oldNumSectors || INDIR_MAX_FILE_SIZE < raw.numBytes){
+        // Restore original values
+        raw.numBytes = oldNumBytes;
+        raw.numSectors = oldNumSectors;
+        return false;  // Not enough space.
+    }
+
+    DEBUG('f', "There is enough disk size to extend the file.\n");
+
+    // The amount of bytes that still need to be allocated.
+    unsigned remainingBytes = extendSize;
+
+    if(not oldDoubleIndirection){
+        if (oldNumBytes < SECTOR_SIZE) {
+            unsigned lastSectorChunk = SECTOR_SIZE - (oldNumBytes % SECTOR_SIZE);
+            remainingBytes -= lastSectorChunk;
+        }
+
+        // Fill the first level of indirection.
+        for(unsigned i = oldNumSectors; i < NUM_DIRECT and remainingBytes > 0; i++){
+            raw.dataSectors[i] = freeMap -> Find();
+            remainingBytes -= SECTOR_SIZE;
+        }
+
+        if (remainingBytes > 0){
+            FileHeader *fh = new FileHeader;
+            RawFileHeader *rfh = fh->GetRaw();
+            *rfh = raw;
+            rfh -> numBytes = MAX_FILE_SIZE;
+            rfh -> numSectors = NUM_DIRECT;
+            raw.dataSectors[0] = freeMap -> Find();
+
+            indirTable.push_back(fh);
+        }
+    }
+
+    if(remainingBytes > 0){
+        // Now the old table has more than one level of indirection.
+        // We start from the last occupied sector table.
+        FileHeader *fh = indirTable[indirTable.size() - 1];
+        RawFileHeader *rfh = fh -> GetRaw();
+
+        // The amount of free bytes in the last occupied sector table.
+        unsigned freeLastTable = MAX_FILE_SIZE - rfh->numBytes;
+
+        fh -> Extend(freeMap, remainingBytes < freeLastTable ? remainingBytes : freeLastTable);
+        remainingBytes -= freeLastTable;
+
+        // Allocate the necessary header tables.
+        for(unsigned i = indirTable.size(); i < indirectionSectorCount; i++){
+            raw.dataSectors[i] = freeMap -> Find();
+            FileHeader *dataHeader = new FileHeader;
+
+            // nextBlock is the amount of bytes the current FileHeader will
+            // store.
+            unsigned nextBlock;
+            if(remainingBytes <= MAX_FILE_SIZE)
+                nextBlock = remainingBytes;
+            else{
+                // Allocate as many bytes as possible.
+                nextBlock = MAX_FILE_SIZE;
+                remainingBytes -= MAX_FILE_SIZE;
+            }
+
+            dataHeader -> Allocate(freeMap, nextBlock);
+            // Save the new FileHeader to the indirTable
+            indirTable.push_back(dataHeader);
+        }
+    }
+
+    return true;
 }
