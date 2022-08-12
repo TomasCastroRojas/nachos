@@ -34,20 +34,17 @@
 /// otherwise, we need to call FetchFrom in order to initialize it from disk.
 ///
 /// * `size` is the number of entries in the directory.
-Directory::Directory(unsigned size)
+Directory::Directory()
 {
-    ASSERT(size > 0);
-    raw.table = new DirectoryEntry [size];
-    raw.tableSize = size;
-    for (unsigned i = 0; i < raw.tableSize; i++) {
-        raw.table[i].inUse = false;
-    }
+    raw.table = nullptr;
+    raw.tableSize = 0;
 }
 
 /// De-allocate directory data structure.
 Directory::~Directory()
 {
-    delete [] raw.table;
+    if(raw.tableSize > 0)
+        delete [] raw.table;
 }
 
 /// Read the contents of the directory from disk.
@@ -57,8 +54,11 @@ void
 Directory::FetchFrom(OpenFile *file)
 {
     ASSERT(file != nullptr);
-    file->ReadAt((char *) raw.table,
-                 raw.tableSize * sizeof (DirectoryEntry), 0);
+    file->ReadAt((char *) &raw.tableSize, sizeof (unsigned), 0);
+    if (raw.tableSize > 0) {
+        raw.table = new DirectoryEntry[raw.tableSize];
+        file->ReadAt((char *) raw.table, raw.tableSize * sizeof (DirectoryEntry), sizeof (unsigned));
+    }
 }
 
 /// Write any modifications to the directory back to disk.
@@ -68,8 +68,10 @@ void
 Directory::WriteBack(OpenFile *file)
 {
     ASSERT(file != nullptr);
-    file->WriteAt((char *) raw.table,
-                  raw.tableSize * sizeof (DirectoryEntry), 0);
+    file->WriteAt((char *) &raw.tableSize, sizeof (unsigned), 0);
+    
+    if (raw.tableSize > 0)
+        file->WriteAt((char *) raw.table, raw.tableSize * sizeof (DirectoryEntry), sizeof (unsigned));
 }
 
 /// Look up file name in directory, and return its location in the table of
@@ -114,23 +116,38 @@ Directory::Find(const char *name)
 /// * `name` is the name of the file being added.
 /// * `newSector` is the disk sector containing the added file's header.
 bool
-Directory::Add(const char *name, int newSector)
+Directory::Add(const char *name, int newSector, bool isDirectory)
 {
     ASSERT(name != nullptr);
+    bool shouldExtend = false;
 
     if (FindIndex(name) != -1) {
         return false;
     }
 
-    for (unsigned i = 0; i < raw.tableSize; i++) {
-        if (!raw.table[i].inUse) {
-            raw.table[i].inUse = true;
-            strncpy(raw.table[i].name, name, FILE_NAME_MAX_LEN);
-            raw.table[i].sector = newSector;
-            return true;
-        }
+    unsigned i = 0;
+    for (; i < raw.tableSize; i++) {
+        if (!raw.table[i].inUse) 
+            break;
     }
-    return false;  // no space.  Fix when we have extensible files.
+
+    if (i == raw.tableSize) {
+        shouldExtend = true;
+        DirectoryEntry* newTable = new DirectoryEntry[raw.tableSize + 1];
+        if (raw.tableSize > 0) {
+            memcpy(newTable, raw.table, raw.tableSize * sizeof (DirectoryEntry));
+            delete[] raw.table;
+        }
+        raw.table = newTable;
+        raw.tableSize++;
+    }
+
+    raw.table[i].isDir = isDirectory;
+    raw.table[i].inUse = true;
+    strncpy(raw.table[i].name, name, FILE_NAME_MAX_LEN);
+    raw.table[i].sector = newSector;
+
+    return shouldExtend;
 }
 
 /// Remove a file name from the directory.   Return true if successful;
@@ -187,4 +204,13 @@ const RawDirectory *
 Directory::GetRaw() const
 {
     return &raw;
+}
+
+void
+Directory::SetInitialValue(unsigned size) {
+    raw.tableSize = size;
+    raw.table = new DirectoryEntry[size];
+    for (unsigned i = size; i > 0; i--) {
+        raw.table[i-1].inUse = false;
+    }
 }

@@ -32,7 +32,7 @@ class Directory {
 public:
 
     /// Initialize an empty directory with space for `size` files.
-    Directory(unsigned size);
+    Directory();
 
     /// De-allocate the directory.
     ~Directory();
@@ -47,7 +47,7 @@ public:
     int Find(const char *name);
 
     /// Add a file name into the directory.
-    bool Add(const char *name, int newSector);
+    bool Add(const char *name, int newSector, bool isDirectory);
 
     /// Remove a file from the directory.
     bool Remove(const char *name);
@@ -65,10 +65,12 @@ public:
     /// system at a low level.
     const RawDirectory *GetRaw() const;
 
-private:
     /// Find the index into the directory table corresponding to `name`.
     int FindIndex(const char *name);
 
+    void SetInitialValue(unsigned size);
+
+private:
     RawDirectory raw;
 };
 
