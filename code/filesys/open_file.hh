@@ -89,11 +89,13 @@ private:
 
 class FileHeader;
 
+#include "file_path.hh"
+
 class OpenFile {
 public:
 
     /// Open a file whose header is located at `sector` on the disk.
-    OpenFile(int sector, ReadWriteController* rw = nullptr);
+    OpenFile(int sector, ReadWriteController* rw = nullptr, FilePath path = FilePath());
 
     /// Close the file.
     ~OpenFile();
@@ -116,11 +118,18 @@ public:
     // the UNIX idiom -- `lseek` to end of file, `tell`, `lseek` back).
     unsigned Length() const;
 
+    int GetSector();
+
+    FileHeader* GetFileHeader();
+
+    FilePath GetPath();
+
   private:
     ReadWriteController *accessController;
-    FileHeader *hdr;  ///< Header for this file.
+    FileHeader *hdr; ///< Header for this file.
     unsigned seekPosition;  ///< Current position within the file.
     int diskSector; // < Sector of the disk where the file is
+    FilePath path;
 };
 
 #endif

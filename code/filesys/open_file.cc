@@ -23,13 +23,14 @@
 /// memory while the file is open.
 ///
 /// * `sector` is the location on disk of the file header for this file.
-OpenFile::OpenFile(int sector, ReadWriteController* rw)
+OpenFile::OpenFile(int sector, ReadWriteController* rw, FilePath path_)
 {
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
     accessController = rw;
     seekPosition = 0;
     diskSector = sector;
+    path = path_;
 }
 
 /// Close a Nachos file, de-allocating any in-memory data structures.
@@ -250,4 +251,21 @@ unsigned
 OpenFile::Length() const
 {
     return hdr->FileLength();
+}
+
+FileHeader*
+OpenFile::GetFileHeader()
+{
+    return hdr;
+}
+
+int
+OpenFile::GetSector()
+{
+    return diskSector;
+}
+
+FilePath
+OpenFile::GetPath() {
+    return path;
 }
