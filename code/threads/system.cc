@@ -256,6 +256,10 @@ Initialize(int argc, char **argv)
     fileSystem = new FileSystem(format);
 #endif
 
+#ifdef FILESYS
+    fileSystem->firstThreadStart();
+#endif
+
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
 #endif
