@@ -95,6 +95,7 @@ public:
 #include "directory_entry.hh"
 #include "machine/disk.hh"
 #include "open_file_list.hh"
+#include "directory_list.hh"
 #include "lib/bitmap.hh"
 
 class Lock;
@@ -105,7 +106,7 @@ class Lock;
 static const unsigned FREE_MAP_FILE_SIZE = NUM_SECTORS / BITS_IN_BYTE;
 static const unsigned NUM_DIR_ENTRIES = 10;
 static const unsigned DIRECTORY_FILE_SIZE
-  = sizeof (DirectoryEntry) * NUM_DIR_ENTRIES;
+  = sizeof (DirectoryEntry) * NUM_DIR_ENTRIES + sizeof(unsigned);
 
 
 class FileSystem {
@@ -121,7 +122,7 @@ public:
     ~FileSystem();
 
     /// Create a file (UNIX `creat`).
-    bool Create(const char *name, unsigned initialSize);
+    bool Create(const char *name, unsigned initialSize, bool isDirectory = false);
 
     /// Open a file (UNIX `open`).
     OpenFile *Open(const char *name);
@@ -150,6 +151,10 @@ public:
     /// memory is freed and the changes are saved to disk.
     void ReleaseFreeMap(Bitmap *freeMap);
 
+    DirectoryEntry FindPath(FilePath* path);
+
+    void firstThreadStart();
+
 private:
     OpenFile *freeMapFile;  ///< Bit map of free disk blocks, represented as a
                             ///< file.
@@ -157,6 +162,8 @@ private:
                               ///< represented as a file.
 
     OpenFileList* openFiles;
+
+    DirectoryList* dirList;
     
     /// Removes the given file from the disk.
     /// This is called after checking the given file is not open
