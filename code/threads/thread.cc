@@ -60,6 +60,9 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int prio)
 
     spaceId = runningThreads->Add(this);
 #endif
+#ifdef FILESYS
+    currentDirLock = nullptr;
+#endif
 }
 
 /// De-allocate a thread.
@@ -363,6 +366,19 @@ Thread::RestoreUserState()
     for (unsigned i = 0; i < NUM_TOTAL_REGS; i++) {
         machine->WriteRegister(i, userRegisters[i]);
     }
+}
+
+#endif
+
+#ifdef FILESYS
+FilePath 
+Thread::GetPath() { 
+    return path; 
+}
+
+void 
+Thread::SetPath(FilePath _path) { 
+    path = _path; 
 }
 
 #endif

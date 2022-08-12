@@ -50,6 +50,10 @@ class Channel;
 #include "userprog/syscall.h"
 #endif
 
+#ifdef FILESYS
+#include "filesys/file_path.hh"
+#endif
+
 #include <stdint.h>
 
 /// CPU register state to be saved on context switch.
@@ -140,6 +144,14 @@ public:
 
     void RestorePriority();
 
+#ifdef FILESYS
+    FilePath GetPath();
+
+    void SetPath(FilePath _path);
+    
+    Lock* currentDirLock;
+#endif
+
 private:
     // Some of the private data for this class is listed above.
 
@@ -163,6 +175,9 @@ private:
     unsigned int priority;
     unsigned int oldPriority;
 
+#ifdef FILESYS
+    FilePath path;
+#endif
 #ifdef USER_PROGRAM
     /// User-level CPU register state.
     ///
