@@ -90,8 +90,8 @@ AddressSpace::AddressSpace(OpenFile *executable_file, int pid)
 
 #ifndef DEMAND_LOADING
     // Then, copy in the code and data segments into memory.
-    uint32_t codeSize = exe.GetCodeSize();
-    uint32_t initDataSize = exe.GetInitDataSize();
+    uint32_t codeLength = exe.GetCodeSize();
+    uint32_t initDataLength = exe.GetInitDataSize();
     if (codeSize > 0) {
         uint32_t virtualAddr = exe.GetCodeAddr();
         DEBUG('a', "Initializing code segment, at 0x%X, size %u\n",
